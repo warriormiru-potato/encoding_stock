@@ -60,16 +60,6 @@ function formatMoney(num) {
 }
 
 // 초기화
-document.querySelector('h1').textContent = GAME_CONFIG.TEXTS.GAME_TITLE;
-connectionStatus.textContent = GAME_CONFIG.TEXTS.CONNECTION_PENDING;
-document.querySelector('#guest-waiting p').textContent = GAME_CONFIG.TEXTS.LOBBY_WAITING_GUEST;
-document.getElementById('max-player-count').textContent = GAME_CONFIG.SYSTEM.MAX_PLAYERS;
-document.querySelector('#guest-next-round-waiting p').textContent = GAME_CONFIG.TEXTS.NEXT_ROUND_WAITING;
-
-const initialMinutes = Math.floor(GAME_CONFIG.SYSTEM.ROUND_TIME / 60).toString().padStart(2, '0');
-const initialSeconds = (GAME_CONFIG.SYSTEM.ROUND_TIME % 60).toString().padStart(2, '0');
-timerDisplay.textContent = `${initialMinutes}:${initialSeconds}`;
-
 window.SCENARIOS.forEach(s => {
   const opt = document.createElement('option');
   opt.value = s.id;
@@ -78,7 +68,7 @@ window.SCENARIOS.forEach(s => {
 });
 
 socket.on('connect', () => {
-  connectionStatus.textContent = GAME_CONFIG.TEXTS.CONNECTION_SUCCESS;
+  connectionStatus.textContent = '서버 연결 완료!';
   connectionStatus.style.color = 'var(--success)';
 });
 
@@ -87,7 +77,7 @@ createRoomBtn.addEventListener('click', () => {
   const name = playerNameInput.value.trim() || 'Player';
   const password = adminPasswordInput.value.trim();
   if (!password) {
-    alert(GAME_CONFIG.TEXTS.ENTER_PASSWORD_ALERT);
+    alert('방을 생성하려면 관리자 비밀번호를 입력해주세요.');
     return;
   }
   socket.emit('createRoom', { playerName: name, adminPassword: password });
@@ -100,7 +90,7 @@ joinRoomBtn.addEventListener('click', () => {
   if (code.length === 4) {
     socket.emit('joinRoom', { roomId: code, playerName: name });
   } else {
-    alert(GAME_CONFIG.TEXTS.INVALID_ROOM_CODE_ALERT);
+    alert('4자리 방 코드를 입력하세요.');
   }
 });
 
@@ -132,27 +122,7 @@ socket.on('updateLobby', (players) => {
   lobbyPlayers.innerHTML = '';
   players.forEach(p => {
     const li = document.createElement('li');
-    li.style.display = 'flex';
-    li.style.justifyContent = 'space-between';
-    li.style.alignItems = 'center';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = p.name + (p.id === socket.id ? ' (나)' : '');
-    li.appendChild(nameSpan);
-
-    // 내가 호스트이고 상대방이 다른 참가자이면 '강퇴' 버튼 생성
-    if (isHost && p.id !== socket.id) {
-      const kickBtn = document.createElement('button');
-      kickBtn.textContent = '강퇴';
-      kickBtn.className = 'btn-danger';
-      kickBtn.style.padding = '5px 10px';
-      kickBtn.style.fontSize = '0.9rem';
-      kickBtn.addEventListener('click', () => {
-        socket.emit('kickPlayer', { roomId: currentRoom, playerId: p.id });
-      });
-      li.appendChild(kickBtn);
-    }
-
+    li.textContent = p.name + (p.id === socket.id ? ' (나)' : '');
     lobbyPlayers.appendChild(li);
   });
 });
