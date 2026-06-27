@@ -50,6 +50,14 @@
           <button id="join-room-btn">방 참가</button>
         </div>
       </div>
+
+      <!-- 방 목록 패널 -->
+      <div id="room-list-container" class="glass" style="margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto;">
+        <h3 style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">현재 대기 중인 방 목록</h3>
+        <ul id="live-room-list" style="list-style: none; padding: 0; margin: 0;">
+          <li style="color: var(--text-muted); font-size: 0.9rem;">대기 중인 방이 없습니다.</li>
+        </ul>
+      </div>
     </section>
 
     <!-- 2. 대기실 화면 (방 안) -->
@@ -83,7 +91,10 @@
           <h2 id="scenario-title">시나리오 제목</h2>
           <p id="round-indicator">Round 1 / 3</p>
         </div>
-        <div class="timer-box" id="timer-display">03:00</div>
+        <div style="display:flex; align-items:center; gap: 15px;">
+          <button id="view-hint-btn" style="display:none; padding: 8px 15px; font-size: 0.9rem; background: var(--secondary);">💡 힌트 다시 보기</button>
+          <div class="timer-box" id="timer-display">03:00</div>
+        </div>
       </div>
 
       <div class="main-board">
@@ -129,22 +140,23 @@
 
   </div>
 
-  <!-- 퀴즈 모달 (라운드 시작 시 강제 팝업) -->
+  <!-- 퀴즈 모달 (라운드 시작 시 강제 팝업 및 힌트 보기 시 팝업) -->
   <div class="modal-overlay" id="quiz-modal">
     <div class="modal-content glass">
-      <h3 style="color:var(--accent);">라운드 시작! 반도체 상식 퀴즈</h3>
-      <p style="margin-bottom:15px; color:var(--text-muted);">퀴즈를 맞추면 이번 라운드의 경제 힌트를 얻을 수 있습니다!</p>
+      <h3 id="quiz-modal-title" style="color:var(--accent);">라운드 시작! 반도체 상식 퀴즈</h3>
+      <p id="quiz-modal-desc" style="margin-bottom:15px; color:var(--text-muted);">퀴즈를 맞추면 이번 라운드의 경제 힌트를 얻을 수 있습니다!</p>
 
-      <div id="quiz-question" style="font-size:1.2rem; font-weight:bold; margin-bottom:20px; min-height:60px;"></div>
-
-      <div class="quiz-options" id="quiz-options">
-        <!-- JS 동적 생성 -->
+      <div id="quiz-question-container">
+        <div id="quiz-question" style="font-size:1.2rem; font-weight:bold; margin-bottom:20px; min-height:60px;"></div>
+        <div class="quiz-options" id="quiz-options">
+          <!-- JS 동적 생성 -->
+        </div>
       </div>
 
       <div class="quiz-result" id="quiz-result" style="display:none;">
         <p id="quiz-explain" style="margin-bottom:15px;"></p>
         <div id="quiz-hint-box" class="hint-box"></div>
-        <button id="close-quiz-btn" style="margin-top:15px; width:100%;">투자 시작하기</button>
+        <button id="close-quiz-btn" style="margin-top:15px; width:100%;">확인</button>
       </div>
     </div>
   </div>

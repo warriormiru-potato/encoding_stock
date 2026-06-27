@@ -48,7 +48,7 @@ async function startServer() {
     console.log('User connected:', socket.id);
 
     // 방 생성 (호스트)
-    socket.on('createRoom', ({ playerName, adminPassword }) => {
+    socket.on('createRoom', ({ playerName, adminPassword, playerId }) => {
       if (adminPassword !== ADMIN_PASSWORD) {
         socket.emit('errorMsg', GAME_CONFIG.TEXTS.WRONG_PASSWORD_ALERT);
         return;
@@ -56,7 +56,7 @@ async function startServer() {
       const roomId = generateRoomCode();
       rooms[roomId] = {
         id: roomId,
-        host: socket.id,
+        host: playerId, // socket.id 대신 고유 playerId 사용
         players: [],
         status: 'lobby', // lobby, playing, result
         round: 1,
@@ -67,17 +67,18 @@ async function startServer() {
         breakingNewsSchedule: []
       };
 
-      const player = { id: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
+      const player = { id: playerId, socketId: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
       COMPANIES.forEach(c => player.shares[c.id] = 0);
       rooms[roomId].players.push(player);
 
       socket.join(roomId);
       socket.emit('roomCreated', { roomId, player });
       io.to(roomId).emit('updateLobby', rooms[roomId].players);
+      io.emit('roomListUpdate', getActiveRooms()); // 대기실 목록 갱신 브로드캐스트
     });
 
     // 방 참가 (게스트)
-    socket.on('joinRoom', ({ roomId, playerName }) => {
+    socket.on('joinRoom', ({ roomId, playerName, playerId }) => {
       const room = rooms[roomId];
       if (!room) {
         socket.emit('errorMsg', '존재하지 않는 방입니다.');
@@ -92,28 +93,63 @@ async function startServer() {
         return;
       }
 
-      const player = { id: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
+      const player = { id: playerId, socketId: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
       COMPANIES.forEach(c => player.shares[c.id] = 0);
       room.players.push(player);
 
       socket.join(roomId);
       socket.emit('joinedRoom', { roomId, player, room });
       io.to(roomId).emit('updateLobby', room.players);
+      io.emit('roomListUpdate', getActiveRooms());
+    });
+
+    // 재접속 (새로고침 복구)
+    socket.on('rejoinRoom', ({ roomId, playerId }) => {
+      const room = rooms[roomId];
+      if (room) {
+        const player = room.players.find(p => p.id === playerId);
+        if (player) {
+          player.socketId = socket.id; // 새 소켓 아이디 갱신
+          socket.join(roomId);
+          socket.emit('rejoinedRoom', { roomId, player, room });
+          if (room.status === 'lobby') {
+            io.to(roomId).emit('updateLobby', room.players);
+          } else {
+            // 게임 중이면 현재 랭킹 및 자산 업데이트
+            io.to(roomId).emit('updatePlayers', room.players);
+          }
+        } else {
+          socket.emit('errorMsg', '해당 방에 참여 중인 정보가 없습니다.');
+        }
+      } else {
+        socket.emit('errorMsg', '방이 존재하지 않거나 이미 종료되었습니다.');
+      }
+    });
+
+    // 방 목록 요청
+    socket.on('getRoomList', () => {
+      socket.emit('roomListUpdate', getActiveRooms());
     });
 
     // 플레이어 강퇴 (호스트 전용)
     socket.on('kickPlayer', ({ roomId, playerId }) => {
       const room = rooms[roomId];
-      if (room && room.host === socket.id) {
+      // 요청자가 호스트인지 확인 (host는 playerId)
+      const requester = room?.players.find(p => p.socketId === socket.id);
+      if (room && requester && room.host === requester.id) {
         const pIdx = room.players.findIndex(p => p.id === playerId);
         if (pIdx !== -1) {
-          const kickedSocket = io.sockets.sockets.get(playerId);
-          if (kickedSocket) {
-            kickedSocket.leave(roomId);
-            kickedSocket.emit('kicked');
+          const kickedSocketId = room.players[pIdx].socketId;
+          if (kickedSocketId) {
+            const kickedSocket = io.sockets.sockets.get(kickedSocketId);
+            if (kickedSocket) {
+              kickedSocket.leave(roomId);
+              kickedSocket.emit('kicked');
+            }
           }
           room.players.splice(pIdx, 1);
           io.to(roomId).emit('updateLobby', room.players);
+          io.emit('roomListUpdate', getActiveRooms());
         }
       }
     });
@@ -121,7 +157,8 @@ async function startServer() {
     // 게임 시작 (호스트 전용)
     socket.on('startGame', ({ roomId, scenarioId }) => {
       const room = rooms[roomId];
-      if (room && room.host === socket.id) {
+      const requester = room?.players.find(p => p.socketId === socket.id);
+      if (room && requester && room.host === requester.id) {
         room.scenario = SCENARIOS.find(s => s.id === scenarioId);
         room.status = 'playing';
         room.round = 1;
@@ -132,7 +169,8 @@ async function startServer() {
           players: room.players,
           round: room.round
         });
-
+        
+        io.emit('roomListUpdate', getActiveRooms()); // 대기실 목록에서 제거됨
         startRoundTimer(roomId);
       }
     });
@@ -141,7 +179,7 @@ async function startServer() {
     socket.on('quizSolved', ({ roomId }) => {
       const room = rooms[roomId];
       if (room) {
-        const player = room.players.find(p => p.id === socket.id);
+        const player = room.players.find(p => p.socketId === socket.id);
         if (player) {
           player.quizSolved = true;
           // 다른 유저들에게도 누군가 퀴즈를 풀었음을 알릴 수 있음
@@ -155,7 +193,7 @@ async function startServer() {
       const room = rooms[roomId];
       if (!room || room.status !== 'playing') return;
 
-      const player = room.players.find(p => p.id === socket.id);
+      const player = room.players.find(p => p.socketId === socket.id);
       const comp = room.companies.find(c => c.id === companyId);
       if (!player || !comp || qty <= 0) return;
 
@@ -180,7 +218,8 @@ async function startServer() {
     // 다음 라운드 진행
     socket.on('nextRound', ({ roomId }) => {
       const room = rooms[roomId];
-      if (room && room.host === socket.id) {
+      const requester = room?.players.find(p => p.socketId === socket.id);
+      if (room && requester && room.host === requester.id) {
         if (room.round >= 3) {
           room.status = 'end';
           io.to(roomId).emit('gameOver', room.players);
@@ -289,23 +328,50 @@ async function startServer() {
       console.log('User disconnected:', socket.id);
       for (const roomId in rooms) {
         const room = rooms[roomId];
-        const pIdx = room.players.findIndex(p => p.id === socket.id);
+        const pIdx = room.players.findIndex(p => p.socketId === socket.id);
         if (pIdx !== -1) {
-          room.players.splice(pIdx, 1);
-          if (room.players.length === 0) {
-            if(room.timerInterval) clearInterval(room.timerInterval);
-            delete rooms[roomId]; // 방 폭파
-          } else {
-            // 만약 호스트가 나갔다면 다음 사람에게 방장 위임
-            if (room.host === socket.id) {
-              room.host = room.players[0].id;
+          // 게임 대기실인 경우에만 방에서 완전히 제거
+          if (room.status === 'lobby') {
+            room.players.splice(pIdx, 1);
+            if (room.players.length === 0) {
+              if(room.timerInterval) clearInterval(room.timerInterval);
+              delete rooms[roomId]; // 방 폭파
+            } else {
+              // 나간 사람이 방장이면 다음 사람에게 위임
+              if (room.host === room.players[pIdx]?.id || true) {
+                // 방장인지 체크 (위에서 splice 되었으므로 인덱스 주의)
+                // 만약 현재 방장이 안보이면 첫번째 사람에게 위임
+                const hasHost = room.players.some(p => p.id === room.host);
+                if (!hasHost && room.players.length > 0) {
+                  room.host = room.players[0].id;
+                }
+              }
+              io.to(roomId).emit('updateLobby', room.players);
             }
-            io.to(roomId).emit('updateLobby', room.players);
+            io.emit('roomListUpdate', getActiveRooms());
+          } else {
+            // 게임이 시작된 경우 접속만 끊김 처리 (데이터 유지)
+            room.players[pIdx].socketId = null;
           }
         }
       }
     });
   });
+
+  // 대기 중인 방 목록 반환 헬퍼 함수
+  function getActiveRooms() {
+    const list = [];
+    for (const roomId in rooms) {
+      if (rooms[roomId].status === 'lobby') {
+        list.push({
+          id: roomId,
+          playerCount: rooms[roomId].players.length,
+          maxPlayers: GAME_CONFIG.SYSTEM.MAX_PLAYERS
+        });
+      }
+    }
+    return list;
+  }
 
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, '0.0.0.0', () => {

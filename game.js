@@ -11,12 +11,19 @@ const socket = io(BACKEND_URL);
 let me = null;
 let currentRoom = null;
 let isHost = false;
+let myPlayerId = localStorage.getItem('playerId');
+if (!myPlayerId) {
+  myPlayerId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  localStorage.setItem('playerId', myPlayerId);
+}
 
 // DOM 요소
 const loginScreen = document.getElementById('login-screen');
 const roomScreen = document.getElementById('room-screen');
 const gameScreen = document.getElementById('game-screen');
 const resultScreen = document.getElementById('result-screen');
+const liveRoomList = document.getElementById('live-room-list');
+const viewHintBtn = document.getElementById('view-hint-btn');
 
 // Login
 const playerNameInput = document.getElementById('player-name');
@@ -70,6 +77,15 @@ window.SCENARIOS.forEach(s => {
 socket.on('connect', () => {
   connectionStatus.textContent = '서버 연결 완료!';
   connectionStatus.style.color = 'var(--success)';
+
+  // 방 목록 요청
+  socket.emit('getRoomList');
+
+  // 세션 복구 시도
+  const savedRoom = localStorage.getItem('roomId');
+  if (savedRoom) {
+    socket.emit('rejoinRoom', { roomId: savedRoom, playerId: myPlayerId });
+  }
 });
 
 // 방 생성
@@ -80,7 +96,7 @@ createRoomBtn.addEventListener('click', () => {
     alert('방을 생성하려면 관리자 비밀번호를 입력해주세요.');
     return;
   }
-  socket.emit('createRoom', { playerName: name, adminPassword: password });
+  socket.emit('createRoom', { playerName: name, adminPassword: password, playerId: myPlayerId });
 });
 
 // 방 참가
@@ -88,7 +104,7 @@ joinRoomBtn.addEventListener('click', () => {
   const name = playerNameInput.value.trim() || 'Player';
   const code = roomCodeInput.value.trim().toUpperCase();
   if (code.length === 4) {
-    socket.emit('joinRoom', { roomId: code, playerName: name });
+    socket.emit('joinRoom', { roomId: code, playerName: name, playerId: myPlayerId });
   } else {
     alert('4자리 방 코드를 입력하세요.');
   }
@@ -99,6 +115,7 @@ socket.on('roomCreated', ({ roomId, player }) => {
   me = player;
   currentRoom = roomId;
   isHost = true;
+  localStorage.setItem('roomId', roomId);
   showRoomScreen();
   hostControls.style.display = 'block';
 });
@@ -108,12 +125,64 @@ socket.on('joinedRoom', ({ roomId, player }) => {
   me = player;
   currentRoom = roomId;
   isHost = false;
+  localStorage.setItem('roomId', roomId);
   showRoomScreen();
   guestWaiting.style.display = 'block';
 });
 
 socket.on('errorMsg', (msg) => {
   alert(msg);
+});
+
+// 재접속 완료
+socket.on('rejoinedRoom', ({ roomId, player, room }) => {
+  me = player;
+  currentRoom = roomId;
+  isHost = (room.host === myPlayerId);
+  localStorage.setItem('roomId', roomId);
+  
+  if (room.status === 'lobby') {
+    showRoomScreen();
+    if (isHost) {
+      hostControls.style.display = 'block';
+      guestWaiting.style.display = 'none';
+    } else {
+      hostControls.style.display = 'none';
+      guestWaiting.style.display = 'block';
+    }
+  } else if (room.status === 'playing') {
+    setupRound({ scenario: room.scenario, companies: room.companies, players: room.players, round: room.round }, true);
+  } else if (room.status === 'result') {
+    alert('게임 결과 대기 화면으로 복구되었습니다.');
+    // 간소화: 다음 라운드 대기 상태로 바로 이동
+    gameScreen.style.display = 'none';
+    resultScreen.style.display = 'block';
+    if (isHost) {
+      document.getElementById('host-next-round-controls').style.display = 'block';
+    } else {
+      document.getElementById('guest-next-round-waiting').style.display = 'block';
+    }
+  }
+});
+
+// 방 목록 업데이트
+socket.on('roomListUpdate', (rooms) => {
+  liveRoomList.innerHTML = '';
+  if (rooms.length === 0) {
+    liveRoomList.innerHTML = '<li style="color: var(--text-muted); font-size: 0.9rem;">대기 중인 방이 없습니다.</li>';
+    return;
+  }
+  rooms.forEach(r => {
+    const li = document.createElement('li');
+    li.style.padding = '10px';
+    li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+    li.style.cursor = 'pointer';
+    li.innerHTML = `<strong>방 ${r.id}</strong> <span style="font-size:0.8rem; color:#aaa;">(${r.playerCount}/${r.maxPlayers}명)</span>`;
+    li.addEventListener('click', () => {
+      roomCodeInput.value = r.id;
+    });
+    liveRoomList.appendChild(li);
+  });
 });
 
 // 로비 업데이트
@@ -148,17 +217,27 @@ socket.on('roundStarted', (data) => {
   setupRound(data);
 });
 
-function setupRound(data) {
+function setupRound(data, isReconnect = false) {
   roomScreen.style.display = 'none';
   resultScreen.style.display = 'none';
   gameScreen.style.display = 'block';
+  viewHintBtn.style.display = 'none'; // 매 라운드 시작 시 숨김
 
   if (data.scenario) scenarioTitle.textContent = data.scenario.title;
   roundIndicator.textContent = `Round ${data.round} / 3`;
 
   renderPlayers(data.players);
   renderStocks(data.companies, data.players);
-  showQuizModal(data);
+  
+  if (!isReconnect) {
+    showQuizModal(data);
+  } else {
+    // 재접속 시 이미 퀴즈를 풀었다면 힌트 버튼 표시
+    const myData = data.players.find(p => p.id === myPlayerId);
+    if (myData && myData.quizSolved && currentHintHtml) {
+      viewHintBtn.style.display = 'inline-block';
+    }
+  }
 }
 
 socket.on('timerUpdate', (time) => {
@@ -243,8 +322,24 @@ function renderStocks(companies, players) {
   });
 }
 
-// 퀴즈 팝업
+// 퀴즈 팝업 및 힌트 보기
 let currentRoundDataForQuiz = null;
+let currentHintHtml = "";
+
+viewHintBtn.addEventListener('click', () => {
+  if (!currentHintHtml) return;
+  document.getElementById('quiz-modal-title').textContent = '💡 독점 힌트 다시 보기';
+  document.getElementById('quiz-modal-desc').style.display = 'none';
+  document.getElementById('quiz-question-container').style.display = 'none';
+  
+  quizResult.style.display = 'block';
+  quizExplain.innerHTML = '';
+  quizHintBox.style.display = 'block';
+  quizHintBox.innerHTML = currentHintHtml;
+  closeQuizBtn.style.display = 'inline-block';
+  closeQuizBtn.textContent = '닫기';
+  quizModal.style.display = 'flex';
+});
 
 function showQuizModal(data) {
   // 클라이언트의 로컬 SCENARIOS 참조
@@ -253,6 +348,11 @@ function showQuizModal(data) {
 
   const qIdx = Math.floor(Math.random() * window.QUIZ_BANK.length);
   const quiz = window.QUIZ_BANK[qIdx];
+
+  document.getElementById('quiz-modal-title').textContent = '라운드 시작! 반도체 상식 퀴즈';
+  document.getElementById('quiz-modal-desc').style.display = 'block';
+  document.getElementById('quiz-question-container').style.display = 'block';
+  document.getElementById('quiz-question').style.display = 'block';
 
   quizQuestion.textContent = quiz.question;
   quizOptions.innerHTML = '';
@@ -283,6 +383,11 @@ function submitQuiz(quiz, selected) {
   quizOptions.innerHTML = '';
   quizResult.style.display = 'block';
   closeQuizBtn.style.display = 'inline-block';
+  closeQuizBtn.textContent = '확인';
+
+  document.getElementById('quiz-modal-title').textContent = '퀴즈 결과';
+  document.getElementById('quiz-modal-desc').style.display = 'none';
+  document.getElementById('quiz-question').style.display = 'none';
 
   const isCorrect = (quiz.answer === selected);
 
@@ -290,12 +395,15 @@ function submitQuiz(quiz, selected) {
     socket.emit('quizSolved', { roomId: currentRoom });
     quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">정답입니다!</span><br>${quiz.explain}`;
     quizHintBox.style.display = 'block';
-    quizHintBox.innerHTML = `<strong>💡 입수된 독점 힌트:</strong><br>${currentRoundDataForQuiz.hint}`;
+    currentHintHtml = `<strong>💡 입수된 독점 힌트:</strong><br>${currentRoundDataForQuiz.hint}`;
+    quizHintBox.innerHTML = currentHintHtml;
+    viewHintBtn.style.display = 'inline-block'; // 힌트 다시보기 버튼 노출
   } else {
     let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
     quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">오답입니다.</span> (정답: ${corrAns})<br>${quiz.explain}`;
     quizHintBox.style.display = 'block';
     quizHintBox.innerHTML = `<em>오답으로 인해 힌트를 얻지 못했습니다. 감각으로 투자하세요!</em>`;
+    currentHintHtml = "";
   }
 }
 
@@ -348,6 +456,8 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
 socket.on('gameOver', (players) => {
   gameScreen.style.display = 'none';
   resultScreen.style.display = 'block';
+  
+  localStorage.removeItem('roomId'); // 게임 종료 시 세션 삭제
 
   document.getElementById('result-title').textContent = `🎉 게임 종료! 최종 랭킹 🎉`;
   document.getElementById('result-stock-changes').innerHTML = '';
