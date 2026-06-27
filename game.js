@@ -134,6 +134,11 @@ socket.on('errorMsg', (msg) => {
   alert(msg);
 });
 
+socket.on('rejoinFailed', (msg) => {
+  console.log('Rejoin failed:', msg);
+  localStorage.removeItem('roomId');
+});
+
 // 재접속 완료
 socket.on('rejoinedRoom', ({ roomId, player, room }) => {
   me = player;

@@ -119,10 +119,10 @@ async function startServer() {
             io.to(roomId).emit('updatePlayers', room.players);
           }
         } else {
-          socket.emit('errorMsg', '해당 방에 참여 중인 정보가 없습니다.');
+          socket.emit('rejoinFailed', '해당 방에 참여 중인 정보가 없습니다.');
         }
       } else {
-        socket.emit('errorMsg', '방이 존재하지 않거나 이미 종료되었습니다.');
+        socket.emit('rejoinFailed', '방이 존재하지 않거나 이미 종료되었습니다.');
       }
     });
 
