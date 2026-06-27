@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>반도체 모의투자 게임 (멀티플레이어)</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+
+  <div class="container">
+    <!-- 긴급특보 배너 -->
+    <div id="news-banner" class="news-banner" style="display:none;">
+      <div class="news-content">
+        <span class="news-icon">🚨</span>
+        <span id="news-text" class="news-text"></span>
+        <span id="news-impact" class="news-impact"></span>
+      </div>
+    </div>
+
+    <header>
+      <h1>자운 반도체 주식대전</h1>
+      <p id="connection-status">서버에 연결 중...</p>
+    </header>
+
+    <!-- 1. 접속 및 로비 생성/참가 화면 -->
+    <section id="login-screen" class="glass">
+      <h2>환영합니다!</h2>
+      <div style="margin: 20px 0;">
+        <input type="text" id="player-name" placeholder="닉네임을 입력하세요" />
+      </div>
+
+      <div style="display:flex; gap: 20px; justify-content:center;">
+        <div class="card glass">
+          <h3>새 게임 방 만들기</h3>
+          <p>방장이 되어 게임을 설정합니다.</p>
+          <button id="create-room-btn">방 만들기</button>
+        </div>
+
+        <div class="card glass">
+          <h3>기존 방 참가하기</h3>
+          <p>친구가 알려준 방 코드를 입력하세요.</p>
+          <input type="text" id="room-code-input" placeholder="방 코드 (예: ABCD)" maxlength="4"
+            style="text-transform:uppercase; margin-bottom:10px; width: 100%;" />
+          <button id="join-room-btn">방 참가</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 대기실 화면 (방 안) -->
+    <section id="room-screen" class="glass" style="display:none;">
+      <h2>게임 대기실</h2>
+      <h3 style="color:var(--accent); font-size:2rem; margin-bottom:20px;">방 코드: <span id="display-room-code"></span>
+      </h3>
+
+      <div id="host-controls"
+        style="display:none; margin-bottom: 30px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
+        <h3>호스트 설정</h3>
+        <label>시나리오 선택: </label>
+        <select id="scenario-select" style="padding:5px; border-radius:5px; width:100%;">
+          <!-- JS로 data.js에서 불러와 채움 -->
+        </select>
+        <button id="start-game-btn" style="margin-top:20px; width:100%;">게임 시작하기</button>
+      </div>
+
+      <div id="guest-waiting" style="display:none; margin-bottom: 30px;">
+        <p>방장이 게임을 시작하기를 기다리고 있습니다...</p>
+      </div>
+
+      <h3>참가자 목록 (<span id="player-count">1</span>/4)</h3>
+      <ul id="lobby-players" class="player-list"></ul>
+    </section>
+
+    <!-- 3. 인게임 화면 -->
+    <section id="game-screen" style="display:none;">
+      <div class="game-header">
+        <div>
+          <h2 id="scenario-title">시나리오 제목</h2>
+          <p id="round-indicator">Round 1 / 3</p>
+        </div>
+        <div class="timer-box" id="timer-display">03:00</div>
+      </div>
+
+      <div class="main-board">
+        <!-- 왼쪽: 내 상태 & 실시간 랭킹 -->
+        <div class="left-panel">
+          <div class="glass my-status-card">
+            <h3>나의 자산</h3>
+            <div id="my-name" class="player-name">Player</div>
+            <div style="margin-top:10px;">현금: <span id="my-cash">5,000,000원</span></div>
+            <div class="player-asset" style="margin-top:10px; font-size:1.3rem;">총 자산: <span
+                id="my-total-asset">5,000,000원</span></div>
+          </div>
+
+          <div class="glass ranking-card" style="margin-top:20px;">
+            <h3>실시간 순위</h3>
+            <ul id="live-ranking" class="ranking-list small"></ul>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 주식 거래 패널 (실시간) -->
+        <div class="stocks-panel" id="stocks-panel">
+          <!-- JS 동적 생성 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 라운드 종료 / 최종 결과 화면 -->
+    <section id="result-screen" class="glass" style="max-width:800px; margin: 50px auto; padding:40px; display:none;">
+      <h2 id="result-title">라운드 결과</h2>
+      <div id="result-stock-changes" style="margin: 20px 0; text-align:left; font-size:1.1rem; line-height:1.6;"></div>
+
+      <ul class="ranking-list" id="final-ranking-list">
+        <!-- JS 동적 생성 -->
+      </ul>
+
+      <div id="host-next-round-controls" style="display:none; margin-top:20px;">
+        <button id="next-round-btn">다음 라운드 시작</button>
+      </div>
+      <div id="guest-next-round-waiting" style="display:none; margin-top:20px;">
+        <p>방장이 다음 라운드를 시작할 때까지 대기해주세요...</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 퀴즈 모달 (라운드 시작 시 강제 팝업) -->
+  <div class="modal-overlay" id="quiz-modal">
+    <div class="modal-content glass">
+      <h3 style="color:var(--accent);">라운드 시작! 반도체 상식 퀴즈</h3>
+      <p style="margin-bottom:15px; color:var(--text-muted);">퀴즈를 맞추면 이번 라운드의 경제 힌트를 얻을 수 있습니다!</p>
+
+      <div id="quiz-question" style="font-size:1.2rem; font-weight:bold; margin-bottom:20px; min-height:60px;"></div>
+
+      <div class="quiz-options" id="quiz-options">
+        <!-- JS 동적 생성 -->
+      </div>
+
+      <div class="quiz-result" id="quiz-result" style="display:none;">
+        <p id="quiz-explain" style="margin-bottom:15px;"></p>
+        <div id="quiz-hint-box" class="hint-box"></div>
+        <button id="close-quiz-btn" style="margin-top:15px; width:100%;">투자 시작하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
+
+</html>
