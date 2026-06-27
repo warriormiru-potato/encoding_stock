@@ -10,6 +10,14 @@ const GAME_CONFIG = {
     DEFAULT_ADMIN_PASSWORD: "admin123" // 어드민(방장) 비밀번호 (서버 환경변수 ADMIN_PASSWORD가 없을 때의 기본값)
   },
 
+  // 구글 스프레드시트 CSV 연동 주소 (비워두면 기본 데이터 사용)
+  GOOGLE_SHEETS: {
+    COMPANIES_URL: "", // 주식 종목 CSV 주소
+    QUIZ_URL: "",      // 퀴즈 목록 CSV 주소
+    NEWS_URL: "",      // 뉴스 특보 CSV 주소
+    SCENARIOS_URL: ""  // 라운드 시나리오 CSV 주소
+  },
+
   // 2. 게임 UI 텍스트 및 메시지 설정 (문구 변경 가능)
   TEXTS: {
     // 로비 및 대기실 관련

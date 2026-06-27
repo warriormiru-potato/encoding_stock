@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/warriormiru-potato/encoding_stock#readme",
   "dependencies": {
+    "csv-parse": "^7.0.0",
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
   }

@@ -1,0 +1,7 @@
+id,name,desc,basePrice
+corefab,코어팹,"파운드리 (위탁 생산)",100000
+nextmemory,넥스트메모리,"메모리 반도체 (DRAM, NAND)",80000
+nanodesign,나노디자인,"팹리스 (설계 전문)",120000
+gwangseong,광성레이저,"장비 (노광 및 제조)",150000
+chemicalwave,케미칼웨이브,"소재 (특수 가스, 웨이퍼)",50000
+packagingworld,패키징월드,"후공정 (패키징, 테스트)",60000
