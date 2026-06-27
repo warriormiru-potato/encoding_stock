@@ -1,6 +1,11 @@
 // game.js - 반도체 모의투자 멀티플레이어 클라이언트
 
-const socket = io();
+// 로컬 개발 환경인 경우 빈 문자열(동일 origin), 배포 환경인 경우 실제 백엔드 서버 URL 설정
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? ''
+  : 'https://encoding-stock.onrender.com'; // 백엔드 배포 후 이 주소를 실제 배포한 서버 주소로 변경하세요.
+
+const socket = io(BACKEND_URL);
 
 // 전역 상태
 let me = null;
@@ -19,6 +24,7 @@ const roomCodeInput = document.getElementById('room-code-input');
 const createRoomBtn = document.getElementById('create-room-btn');
 const joinRoomBtn = document.getElementById('join-room-btn');
 const connectionStatus = document.getElementById('connection-status');
+const adminPasswordInput = document.getElementById('admin-password-input');
 
 // Room
 const displayRoomCode = document.getElementById('display-room-code');
@@ -54,6 +60,16 @@ function formatMoney(num) {
 }
 
 // 초기화
+document.querySelector('h1').textContent = GAME_CONFIG.TEXTS.GAME_TITLE;
+connectionStatus.textContent = GAME_CONFIG.TEXTS.CONNECTION_PENDING;
+document.querySelector('#guest-waiting p').textContent = GAME_CONFIG.TEXTS.LOBBY_WAITING_GUEST;
+document.getElementById('max-player-count').textContent = GAME_CONFIG.SYSTEM.MAX_PLAYERS;
+document.querySelector('#guest-next-round-waiting p').textContent = GAME_CONFIG.TEXTS.NEXT_ROUND_WAITING;
+
+const initialMinutes = Math.floor(GAME_CONFIG.SYSTEM.ROUND_TIME / 60).toString().padStart(2, '0');
+const initialSeconds = (GAME_CONFIG.SYSTEM.ROUND_TIME % 60).toString().padStart(2, '0');
+timerDisplay.textContent = `${initialMinutes}:${initialSeconds}`;
+
 window.SCENARIOS.forEach(s => {
   const opt = document.createElement('option');
   opt.value = s.id;
@@ -62,14 +78,19 @@ window.SCENARIOS.forEach(s => {
 });
 
 socket.on('connect', () => {
-  connectionStatus.textContent = '서버 연결 완료!';
+  connectionStatus.textContent = GAME_CONFIG.TEXTS.CONNECTION_SUCCESS;
   connectionStatus.style.color = 'var(--success)';
 });
 
 // 방 생성
 createRoomBtn.addEventListener('click', () => {
   const name = playerNameInput.value.trim() || 'Player';
-  socket.emit('createRoom', { playerName: name });
+  const password = adminPasswordInput.value.trim();
+  if (!password) {
+    alert(GAME_CONFIG.TEXTS.ENTER_PASSWORD_ALERT);
+    return;
+  }
+  socket.emit('createRoom', { playerName: name, adminPassword: password });
 });
 
 // 방 참가
@@ -79,7 +100,7 @@ joinRoomBtn.addEventListener('click', () => {
   if (code.length === 4) {
     socket.emit('joinRoom', { roomId: code, playerName: name });
   } else {
-    alert('4자리 방 코드를 입력하세요.');
+    alert(GAME_CONFIG.TEXTS.INVALID_ROOM_CODE_ALERT);
   }
 });
 
@@ -111,7 +132,27 @@ socket.on('updateLobby', (players) => {
   lobbyPlayers.innerHTML = '';
   players.forEach(p => {
     const li = document.createElement('li');
-    li.textContent = p.name + (p.id === socket.id ? ' (나)' : '');
+    li.style.display = 'flex';
+    li.style.justifyContent = 'space-between';
+    li.style.alignItems = 'center';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = p.name + (p.id === socket.id ? ' (나)' : '');
+    li.appendChild(nameSpan);
+
+    // 내가 호스트이고 상대방이 다른 참가자이면 '강퇴' 버튼 생성
+    if (isHost && p.id !== socket.id) {
+      const kickBtn = document.createElement('button');
+      kickBtn.textContent = '강퇴';
+      kickBtn.className = 'btn-danger';
+      kickBtn.style.padding = '5px 10px';
+      kickBtn.style.fontSize = '0.9rem';
+      kickBtn.addEventListener('click', () => {
+        socket.emit('kickPlayer', { roomId: currentRoom, playerId: p.id });
+      });
+      li.appendChild(kickBtn);
+    }
+
     lobbyPlayers.appendChild(li);
   });
 });
@@ -141,10 +182,10 @@ function setupRound(data) {
   roomScreen.style.display = 'none';
   resultScreen.style.display = 'none';
   gameScreen.style.display = 'block';
-  
+
   if (data.scenario) scenarioTitle.textContent = data.scenario.title;
   roundIndicator.textContent = `Round ${data.round} / 3`;
-  
+
   renderPlayers(data.players);
   renderStocks(data.companies, data.players);
   showQuizModal(data);
@@ -154,7 +195,7 @@ socket.on('timerUpdate', (time) => {
   const m = Math.floor(time / 60).toString().padStart(2, '0');
   const s = (time % 60).toString().padStart(2, '0');
   timerDisplay.textContent = `${m}:${s}`;
-  if(time <= 30) {
+  if (time <= 30) {
     timerDisplay.classList.add('timer-urgent');
   } else {
     timerDisplay.classList.remove('timer-urgent');
@@ -182,7 +223,7 @@ function renderPlayers(players) {
     myTotalAssetEl.textContent = formatMoney(me.totalAsset);
   }
 
-  const sorted = [...players].sort((a,b) => b.totalAsset - a.totalAsset);
+  const sorted = [...players].sort((a, b) => b.totalAsset - a.totalAsset);
   liveRanking.innerHTML = '';
   sorted.forEach((p, idx) => {
     const li = document.createElement('li');
@@ -195,7 +236,7 @@ function renderPlayers(players) {
 function renderStocks(companies, players) {
   stocksPanel.innerHTML = '';
   const myData = players.find(p => p.id === socket.id) || me;
-  
+
   companies.forEach(c => {
     const div = document.createElement('div');
     div.className = 'stock-card glass';
@@ -239,10 +280,10 @@ function showQuizModal(data) {
   // 클라이언트의 로컬 SCENARIOS 참조
   const scenarioData = window.SCENARIOS.find(s => s.id === (data.scenario ? data.scenario.id : parseInt(scenarioSelect.value)));
   if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
-  
+
   const qIdx = Math.floor(Math.random() * window.QUIZ_BANK.length);
   const quiz = window.QUIZ_BANK[qIdx];
-  
+
   quizQuestion.textContent = quiz.question;
   quizOptions.innerHTML = '';
   quizResult.style.display = 'none';
@@ -264,7 +305,7 @@ function showQuizModal(data) {
       quizOptions.appendChild(btn);
     });
   }
-  
+
   quizModal.style.display = 'flex';
 }
 
@@ -272,9 +313,9 @@ function submitQuiz(quiz, selected) {
   quizOptions.innerHTML = '';
   quizResult.style.display = 'block';
   closeQuizBtn.style.display = 'inline-block';
-  
+
   const isCorrect = (quiz.answer === selected);
-  
+
   if (isCorrect) {
     socket.emit('quizSolved', { roomId: currentRoom });
     quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">정답입니다!</span><br>${quiz.explain}`;
@@ -296,23 +337,23 @@ closeQuizBtn.addEventListener('click', () => {
 socket.on('roundEnded', (data) => {
   gameScreen.style.display = 'none';
   resultScreen.style.display = 'block';
-  
+
   document.getElementById('result-title').textContent = `Round ${data.round} 결과`;
-  
+
   let changeHtml = '';
   data.companies.forEach(c => {
     const pct = data.changes[c.id] || 0;
-    const oldPrice = Math.floor(c.basePrice / (1 + pct/100)); // 역산
+    const oldPrice = Math.floor(c.basePrice / (1 + pct / 100)); // 역산
     const colorClass = pct > 0 ? 'price-up' : (pct < 0 ? 'price-down' : '');
     const sign = pct > 0 ? '+' : '';
     changeHtml += `<div><strong>${c.name}:</strong> <span class="${colorClass}">${formatMoney(oldPrice)} ➔ ${formatMoney(c.basePrice)} (${sign}${pct}%)</span></div>`;
   });
   document.getElementById('result-stock-changes').innerHTML = changeHtml;
-  
-  const sortedPlayers = [...data.players].sort((a,b) => b.totalAsset - a.totalAsset);
+
+  const sortedPlayers = [...data.players].sort((a, b) => b.totalAsset - a.totalAsset);
   const rankingList = document.getElementById('final-ranking-list');
   rankingList.innerHTML = '';
-  
+
   sortedPlayers.forEach((p, idx) => {
     const li = document.createElement('li');
     li.className = 'ranking-item';
@@ -337,16 +378,16 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
 socket.on('gameOver', (players) => {
   gameScreen.style.display = 'none';
   resultScreen.style.display = 'block';
-  
+
   document.getElementById('result-title').textContent = `🎉 게임 종료! 최종 랭킹 🎉`;
   document.getElementById('result-stock-changes').innerHTML = '';
   document.getElementById('host-next-round-controls').style.display = 'none';
   document.getElementById('guest-next-round-waiting').style.display = 'none';
-  
-  const sortedPlayers = [...players].sort((a,b) => b.totalAsset - a.totalAsset);
+
+  const sortedPlayers = [...players].sort((a, b) => b.totalAsset - a.totalAsset);
   const rankingList = document.getElementById('final-ranking-list');
   rankingList.innerHTML = '';
-  
+
   sortedPlayers.forEach((p, idx) => {
     const li = document.createElement('li');
     li.className = `ranking-item ${idx === 0 ? 'first-place' : ''}`;
@@ -365,20 +406,20 @@ socket.on('breakingNews', (data) => {
   // 주가 및 내 자산 갱신
   renderStocks(data.companies, data.players);
   renderPlayers(data.players);
-  
+
   // 특보 배너 노출
   newsText.textContent = data.news.text;
   newsImpact.textContent = "주가 " + (data.impact > 0 ? "+" : "") + data.impact + "%";
-  
+
   newsBanner.className = 'news-banner'; // 클래스 초기화
   if (data.news.type === 'good') {
     newsBanner.classList.add('good-news');
   } else {
     newsBanner.classList.add('bad-news');
   }
-  
+
   newsBanner.style.display = 'flex';
-  
+
   // 7초 후 숨김
   setTimeout(() => {
     newsBanner.style.display = 'none';

@@ -1,16 +1,17 @@
 /* styles.css - 반도체 모의투자 게임 멀티플레이어 스타일시트 */
+/* [가이드라인] 여기서 디자인 테마 및 색상을 직접 변경할 수 있습니다. */
 :root {
-  --bg-dark: #0f172a;
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --accent: #8b5cf6;
-  --success: #10b981;
-  --danger: #ef4444;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --glass-blur: blur(12px);
+  --bg-dark: #0f172a;       /* 전체 배경 색상 (짙은 청색) */
+  --bg-card: rgba(30, 41, 59, 0.7); /* 글래스모피즘 카드 배경색 */
+  --primary: #3b82f6;       /* 주요 버튼 및 강조 색상 (파란색) */
+  --primary-hover: #2563eb; /* 주요 버튼 호버(마우스 올림) 시 색상 */
+  --accent: #8b5cf6;        /* 보조 포인트 색상 (보라색) */
+  --success: #10b981;       /* 상승/성공/정답 표시 색상 (초록색) */
+  --danger: #ef4444;        /* 하락/위험/오답/강퇴 표시 색상 (빨간색) */
+  --text-main: #f8fafc;     /* 일반 텍스트 색상 (밝은 회색) */
+  --text-muted: #94a3b8;    /* 흐린 설명글 텍스트 색상 (어두운 회색) */
+  --border-color: rgba(255, 255, 255, 0.1); /* 카드 테두리 선 색상 */
+  --glass-blur: blur(12px);  /* 글래스모피즘 블러 강도 */
 }
 
 * {

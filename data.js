@@ -1,4 +1,13 @@
 // 반도체 모의투자 게임 데이터 파일 (data.js)
+// 이 파일을 수정하여 가상 기업 목록, 퀴즈 은행, 라운드 시나리오, 긴급 뉴스 목록을 쉽게 추가/수정/삭제할 수 있습니다.
+// 
+// [가이드라인]
+// 1. 기업 추가: COMPANIES 배열에 { id: "아이디", name: "기업명", desc: "설명", basePrice: 기본주가 } 형식으로 추가합니다.
+// 2. 퀴즈 추가: QUIZ_BANK 배열에 새로운 퀴즈 객체를 추가합니다. OX형과 4지선다형(CHOICE)을 지원합니다.
+//    - OX형: { id: 번호, type: "OX", question: "문제내용", answer: "O" 또는 "X", explain: "해설내용" }
+//    - 객관식: { id: 번호, type: "CHOICE", question: "문제내용", options: ["보기1", "보기2", "보기3", "보기4"], answer: 정답인덱스(0부터 시작), explain: "해설내용" }
+// 3. 시나리오 추가/수정: SCENARIOS 배열의 각 시나리오와 라운드 힌트, 주가 변동률(changes)을 설정합니다.
+// 4. 뉴스 추가: BREAKING_NEWS 배열에 뉴스를 등록합니다. 주가 변동 영향 범위(impact min/max)도 조절 가능합니다.
 
 // 6개 가상 반도체 기업 정의
 const COMPANIES = [

@@ -3,10 +3,18 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { COMPANIES, SCENARIOS, BREAKING_NEWS } = require('./data');
+const { GAME_CONFIG } = require('./config');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || GAME_CONFIG.SYSTEM.DEFAULT_ADMIN_PASSWORD;
 
 // 정적 파일 제공
 app.use(express.static(__dirname));
@@ -23,7 +31,11 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // 방 생성 (호스트)
-  socket.on('createRoom', ({ playerName }) => {
+  socket.on('createRoom', ({ playerName, adminPassword }) => {
+    if (adminPassword !== ADMIN_PASSWORD) {
+      socket.emit('errorMsg', GAME_CONFIG.TEXTS.WRONG_PASSWORD_ALERT);
+      return;
+    }
     const roomId = generateRoomCode();
     rooms[roomId] = {
       id: roomId,
@@ -31,14 +43,14 @@ io.on('connection', (socket) => {
       players: [],
       status: 'lobby', // lobby, playing, result
       round: 1,
-      timer: 180,
+      timer: GAME_CONFIG.SYSTEM.ROUND_TIME,
       timerInterval: null,
       scenario: null,
       companies: JSON.parse(JSON.stringify(COMPANIES)),
       breakingNewsSchedule: []
     };
 
-    const player = { id: socket.id, name: playerName, cash: 5000000, shares: {}, totalAsset: 5000000, quizSolved: false };
+    const player = { id: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
     COMPANIES.forEach(c => player.shares[c.id] = 0);
     rooms[roomId].players.push(player);
 
@@ -58,18 +70,35 @@ io.on('connection', (socket) => {
       socket.emit('errorMsg', '이미 게임이 시작된 방입니다.');
       return;
     }
-    if (room.players.length >= 4) {
+    if (room.players.length >= GAME_CONFIG.SYSTEM.MAX_PLAYERS) {
       socket.emit('errorMsg', '방이 가득 찼습니다.');
       return;
     }
 
-    const player = { id: socket.id, name: playerName, cash: 5000000, shares: {}, totalAsset: 5000000, quizSolved: false };
+    const player = { id: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
     COMPANIES.forEach(c => player.shares[c.id] = 0);
     room.players.push(player);
 
     socket.join(roomId);
     socket.emit('joinedRoom', { roomId, player, room });
     io.to(roomId).emit('updateLobby', room.players);
+  });
+
+  // 플레이어 강퇴 (호스트 전용)
+  socket.on('kickPlayer', ({ roomId, playerId }) => {
+    const room = rooms[roomId];
+    if (room && room.host === socket.id) {
+      const pIdx = room.players.findIndex(p => p.id === playerId);
+      if (pIdx !== -1) {
+        const kickedSocket = io.sockets.sockets.get(playerId);
+        if (kickedSocket) {
+          kickedSocket.leave(roomId);
+          kickedSocket.emit('kicked');
+        }
+        room.players.splice(pIdx, 1);
+        io.to(roomId).emit('updateLobby', room.players);
+      }
+    }
   });
 
   // 게임 시작 (호스트 전용)
@@ -156,7 +185,7 @@ io.on('connection', (socket) => {
   // 타이머 로직
   function startRoundTimer(roomId) {
     const room = rooms[roomId];
-    room.timer = 180;
+    room.timer = GAME_CONFIG.SYSTEM.ROUND_TIME;
     
     // 긴급특보 스케줄링 (0 ~ 2회)
     const newsCount = Math.floor(Math.random() * 3);
