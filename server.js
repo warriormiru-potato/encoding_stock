@@ -251,7 +251,8 @@ async function startServer() {
         if (availableNews.length === 0) break;
         const idx = Math.floor(Math.random() * availableNews.length);
         const newsItem = availableNews.splice(idx, 1)[0];
-        const triggerTime = Math.floor(Math.random() * 140) + 20; // 20초 ~ 160초 남았을 때
+        const maxOffset = Math.max(10, room.timer - 20);
+        const triggerTime = Math.floor(Math.random() * maxOffset) + 10; // 남은 시간 비례해서 특보 발생
         room.breakingNewsSchedule.push({ time: triggerTime, news: newsItem });
       }
       
