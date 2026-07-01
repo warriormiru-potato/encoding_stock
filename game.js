@@ -196,7 +196,7 @@ socket.on('updateLobby', (players) => {
   lobbyPlayers.innerHTML = '';
   players.forEach(p => {
     const li = document.createElement('li');
-    li.textContent = p.name + (p.id === socket.id ? ' (나)' : '');
+    li.textContent = p.name + (p.id === myPlayerId ? ' (나)' : '');
     lobbyPlayers.appendChild(li);
   });
 });
@@ -259,7 +259,7 @@ socket.on('timerUpdate', (time) => {
 socket.on('updatePlayers', (players) => {
   renderPlayers(players);
   // 주식 패널 내 보유량 업데이트
-  const myData = players.find(p => p.id === socket.id);
+  const myData = players.find(p => p.id === myPlayerId);
   if (myData) {
     window.COMPANIES.forEach(c => {
       const shareEl = document.getElementById(`share-${c.id}`);
@@ -269,7 +269,7 @@ socket.on('updatePlayers', (players) => {
 });
 
 function renderPlayers(players) {
-  const myData = players.find(p => p.id === socket.id);
+  const myData = players.find(p => p.id === myPlayerId);
   if (myData) {
     me = myData;
     myNameEl.textContent = me.name;
@@ -289,7 +289,7 @@ function renderPlayers(players) {
 
 function renderStocks(companies, players) {
   stocksPanel.innerHTML = '';
-  const myData = players.find(p => p.id === socket.id) || me;
+  const myData = players.find(p => p.id === myPlayerId) || me;
 
   companies.forEach(c => {
     const div = document.createElement('div');
