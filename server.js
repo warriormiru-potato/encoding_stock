@@ -256,9 +256,9 @@ async function startServer() {
       const room = rooms[roomId];
       room.timer = GAME_CONFIG.SYSTEM.ROUND_TIME;
       
-      // 긴급특보 스케줄링 (대폭 증가: 3 ~ 6회)
+      // 긴급특보 스케줄링 (유저 요청: 라운드당 3 ~ 4회)
       const availableNews = [...BREAKING_NEWS];
-      const maxNewsCount = Math.min(Math.floor(Math.random() * 4) + 3, availableNews.length);
+      const maxNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, availableNews.length);
       room.breakingNewsSchedule = [];
       
       for(let i=0; i<maxNewsCount; i++) {
@@ -285,9 +285,9 @@ async function startServer() {
         // 긴급특보 발생 체크
         room.breakingNewsSchedule.forEach(sch => {
           if (sch.time === room.timer) {
-            // 변동폭 계산 및 3배 증폭 (유저 요청)
+            // 변동폭 계산 및 1.5배 증폭 (유저 요청)
             const baseImpact = Math.floor(Math.random() * (sch.news.impact.max - sch.news.impact.min + 1)) + sch.news.impact.min;
-            const impact = Math.round(baseImpact * 3);
+            const impact = Math.round(baseImpact * 1.5);
             
             const comp = room.companies.find(c => c.id === sch.news.companyId);
             if (comp) {
