@@ -189,9 +189,10 @@ socket.on('roomListUpdate', (rooms) => {
     li.style.padding = '10px';
     li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
     li.style.cursor = 'pointer';
-    li.innerHTML = `<strong>방 ${r.id}</strong> <span style="font-size:0.8rem; color:#aaa;">(${r.playerCount}/${r.maxPlayers}명)</span>`;
+    // 방 코드 대신 방장 이름 표시
+    li.innerHTML = `<strong>${r.hostName}님의 서버</strong> <span style="font-size:0.8rem; color:#aaa;">(${r.playerCount}/${r.maxPlayers}명)</span>`;
     li.addEventListener('click', () => {
-      roomCodeInput.value = r.id;
+      roomCodeInput.value = r.id; // 클릭하면 여전히 내부적으로는 코드가 입력됨
     });
     liveRoomList.appendChild(li);
   });

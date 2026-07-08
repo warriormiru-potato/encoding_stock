@@ -92,6 +92,10 @@ async function startServer() {
         socket.emit('errorMsg', '방이 가득 찼습니다.');
         return;
       }
+      if (room.players.some(p => p.name === playerName)) {
+        socket.emit('errorMsg', '이미 방에 같은 닉네임을 가진 플레이어가 있습니다. 다른 닉네임을 사용해주세요.');
+        return;
+      }
 
       const player = { id: playerId, socketId: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
       COMPANIES.forEach(c => player.shares[c.id] = 0);
@@ -373,9 +377,12 @@ async function startServer() {
     const list = [];
     for (const roomId in rooms) {
       if (rooms[roomId].status === 'lobby') {
+        const room = rooms[roomId];
+        const hostPlayer = room.players.find(p => p.id === room.host);
         list.push({
           id: roomId,
-          playerCount: rooms[roomId].players.length,
+          hostName: hostPlayer ? hostPlayer.name : '알수없는',
+          playerCount: room.players.length,
           maxPlayers: GAME_CONFIG.SYSTEM.MAX_PLAYERS
         });
       }
