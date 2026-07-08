@@ -256,16 +256,23 @@ async function startServer() {
       const room = rooms[roomId];
       room.timer = GAME_CONFIG.SYSTEM.ROUND_TIME;
       
-      // 긴급특보 스케줄링 (0 ~ 2회)
-      const newsCount = Math.floor(Math.random() * 3);
-      room.breakingNewsSchedule = [];
+      // 긴급특보 스케줄링 (대폭 증가: 3 ~ 6회)
       const availableNews = [...BREAKING_NEWS];
-      for(let i=0; i<newsCount; i++) {
+      const maxNewsCount = Math.min(Math.floor(Math.random() * 4) + 3, availableNews.length);
+      room.breakingNewsSchedule = [];
+      
+      for(let i=0; i<maxNewsCount; i++) {
         if (availableNews.length === 0) break;
         const idx = Math.floor(Math.random() * availableNews.length);
         const newsItem = availableNews.splice(idx, 1)[0];
-        const maxOffset = Math.max(10, room.timer - 20);
-        const triggerTime = Math.floor(Math.random() * maxOffset) + 10; // 남은 시간 비례해서 특보 발생
+        
+        // 트리거 시간을 현재 라운드 시간에 비례하여 안전하게 설정 (종료 3초전 ~ 시작 3초후)
+        let triggerTime = Math.floor(Math.random() * (room.timer - 5)) + 3;
+        // 같은 시간에 뉴스가 겹치지 않도록 방지
+        while (room.breakingNewsSchedule.some(s => s.time === triggerTime)) {
+          triggerTime = Math.floor(Math.random() * (room.timer - 5)) + 3;
+        }
+        
         room.breakingNewsSchedule.push({ time: triggerTime, news: newsItem });
       }
       
@@ -278,7 +285,10 @@ async function startServer() {
         // 긴급특보 발생 체크
         room.breakingNewsSchedule.forEach(sch => {
           if (sch.time === room.timer) {
-            const impact = Math.floor(Math.random() * (sch.news.impact.max - sch.news.impact.min + 1)) + sch.news.impact.min;
+            // 변동폭 계산 및 3배 증폭 (유저 요청)
+            const baseImpact = Math.floor(Math.random() * (sch.news.impact.max - sch.news.impact.min + 1)) + sch.news.impact.min;
+            const impact = Math.round(baseImpact * 3);
+            
             const comp = room.companies.find(c => c.id === sch.news.companyId);
             if (comp) {
               comp.basePrice = Math.floor(comp.basePrice * (1 + impact / 100));
