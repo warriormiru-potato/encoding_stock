@@ -66,6 +66,13 @@ function formatMoney(num) {
   return new Intl.NumberFormat('ko-KR').format(num) + '원';
 }
 
+// 화면 활성화 감지 (탭 전환 시 타이머 동기화)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentRoom) {
+    socket.emit('requestSync', { roomId: currentRoom });
+  }
+});
+
 // 초기화
 window.SCENARIOS.forEach(s => {
   const opt = document.createElement('option');

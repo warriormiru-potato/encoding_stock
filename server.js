@@ -126,6 +126,15 @@ async function startServer() {
       }
     });
 
+    // 화면 복귀 시 동기화 요청
+    socket.on('requestSync', ({ roomId }) => {
+      const room = rooms[roomId];
+      if (room && room.status === 'playing') {
+        socket.emit('timerUpdate', room.timer);
+        socket.emit('updatePlayers', room.players);
+      }
+    });
+
     // 방 목록 요청
     socket.on('getRoomList', () => {
       socket.emit('roomListUpdate', getActiveRooms());
