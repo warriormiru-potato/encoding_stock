@@ -39,7 +39,6 @@ const lobbyPlayers = document.getElementById('lobby-players');
 const playerCount = document.getElementById('player-count');
 const hostControls = document.getElementById('host-controls');
 const guestWaiting = document.getElementById('guest-waiting');
-const scenarioSelect = document.getElementById('scenario-select');
 const startGameBtn = document.getElementById('start-game-btn');
 
 // Game
@@ -71,14 +70,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentRoom) {
     socket.emit('requestSync', { roomId: currentRoom });
   }
-});
-
-// 초기화
-window.SCENARIOS.forEach(s => {
-  const opt = document.createElement('option');
-  opt.value = s.id;
-  opt.textContent = `${s.id}. ${s.title}`;
-  scenarioSelect.appendChild(opt);
 });
 
 socket.on('connect', () => {
@@ -217,8 +208,8 @@ function showRoomScreen() {
 
 // 게임 시작 클릭 (호스트)
 startGameBtn.addEventListener('click', () => {
-  const sid = parseInt(scenarioSelect.value);
-  socket.emit('startGame', { roomId: currentRoom, scenarioId: sid });
+  const randomScenario = window.SCENARIOS[Math.floor(Math.random() * window.SCENARIOS.length)];
+  socket.emit('startGame', { roomId: currentRoom, scenarioId: randomScenario.id });
 });
 
 // 게임 시작됨
@@ -355,8 +346,6 @@ viewHintBtn.addEventListener('click', () => {
 });
 
 function showQuizModal(data) {
-  // 클라이언트의 로컬 SCENARIOS 참조
-  const scenarioData = window.SCENARIOS.find(s => s.id === (data.scenario ? data.scenario.id : parseInt(scenarioSelect.value)));
   if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
 
   const qIdx = Math.floor(Math.random() * window.QUIZ_BANK.length);
