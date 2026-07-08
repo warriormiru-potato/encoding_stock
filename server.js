@@ -288,9 +288,9 @@ async function startServer() {
         // 긴급특보 발생 체크
         room.breakingNewsSchedule.forEach(sch => {
           if (sch.time === room.timer) {
-            // 변동폭 계산 및 1.5배 증폭 (유저 요청)
+            // 변동폭 계산 및 1.2배 증폭 (유저 요청: 조금 줄임)
             const baseImpact = Math.floor(Math.random() * (sch.news.impact.max - sch.news.impact.min + 1)) + sch.news.impact.min;
-            const impact = Math.round(baseImpact * 1.5);
+            const impact = Math.round(baseImpact * 1.2);
             
             const comp = room.companies.find(c => c.id === sch.news.companyId);
             if (comp) {
