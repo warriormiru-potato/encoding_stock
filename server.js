@@ -266,11 +266,14 @@ async function startServer() {
         const idx = Math.floor(Math.random() * availableNews.length);
         const newsItem = availableNews.splice(idx, 1)[0];
         
-        // 트리거 시간을 현재 라운드 시간에 비례하여 안전하게 설정 (종료 3초전 ~ 시작 3초후)
-        let triggerTime = Math.floor(Math.random() * (room.timer - 5)) + 3;
+        // 초반 15초 동안은 뉴스가 터지지 않도록 유예 (유저 요청)
+        const gracePeriod = 15;
+        const maxTrigger = Math.max(3, room.timer - gracePeriod);
+        
+        let triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3; // 3 ~ maxTrigger
         // 같은 시간에 뉴스가 겹치지 않도록 방지
         while (room.breakingNewsSchedule.some(s => s.time === triggerTime)) {
-          triggerTime = Math.floor(Math.random() * (room.timer - 5)) + 3;
+          triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3;
         }
         
         room.breakingNewsSchedule.push({ time: triggerTime, news: newsItem });
