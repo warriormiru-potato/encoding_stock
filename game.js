@@ -143,7 +143,7 @@ socket.on('rejoinedRoom', ({ roomId, player, room }) => {
   currentRoom = roomId;
   isHost = (room.host === myPlayerId);
   localStorage.setItem('roomId', roomId);
-  
+
   if (room.status === 'lobby') {
     showRoomScreen();
     if (isHost) {
@@ -232,7 +232,7 @@ function setupRound(data, isReconnect = false) {
 
   renderPlayers(data.players);
   renderStocks(data.companies, data.players);
-  
+
   if (!isReconnect) {
     showQuizModal(data);
   } else {
@@ -335,7 +335,7 @@ viewHintBtn.addEventListener('click', () => {
   document.getElementById('quiz-modal-title').textContent = '💡 독점 힌트 다시 보기';
   document.getElementById('quiz-modal-desc').style.display = 'none';
   document.getElementById('quiz-question-container').style.display = 'none';
-  
+
   quizResult.style.display = 'block';
   quizExplain.innerHTML = '';
   quizHintBox.style.display = 'block';
@@ -458,7 +458,7 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
 socket.on('gameOver', (players) => {
   gameScreen.style.display = 'none';
   resultScreen.style.display = 'block';
-  
+
   localStorage.removeItem('roomId'); // 게임 종료 시 세션 삭제
 
   document.getElementById('result-title').textContent = `🎉 게임 종료! 최종 랭킹 🎉`;

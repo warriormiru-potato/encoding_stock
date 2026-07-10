@@ -5,7 +5,7 @@ const GAME_CONFIG = {
   // 1. 게임 시스템 설정
   SYSTEM: {
     DEFAULT_CASH: 2500000,             // 게임 시작 시 각 플레이어가 받는 기본 현금 (원)
-    ROUND_TIME: 30,                   // 라운드 당 제한 시간 (초) - 180초 = 3분
+    ROUND_TIME: 180,                   // 라운드 당 제한 시간 (초) - 180초 = 3분
     MAX_PLAYERS: 10,                    // 게임 방 하나에 들어올 수 있는 최대 플레이어 수 (2~4인 추천)
     DEFAULT_ADMIN_PASSWORD: "tjwjddnjs" // 어드민(방장) 비밀번호 (서버 환경변수 ADMIN_PASSWORD가 없을 때의 기본값)
   },
@@ -34,7 +34,7 @@ const GAME_CONFIG = {
 
     // 게임 본 화면 관련
     NEXT_ROUND_WAITING: "방장이 다음 라운드를 시작할 때까지 대기해주세요...",
-    FINAL_RANKING_TITLE: "🎉 게임 종료! 최종 랭킹 🎉"
+    FINAL_RANKING_TITLE: " 게임 종료! 최종 랭킹 "
   }
 };
 
