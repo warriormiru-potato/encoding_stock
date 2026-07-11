@@ -256,27 +256,29 @@ async function startServer() {
       const room = rooms[roomId];
       room.timer = GAME_CONFIG.SYSTEM.ROUND_TIME;
       
-      // 긴급특보 스케줄링 (유저 요청: 라운드당 3 ~ 4회)
-      const availableNews = [...BREAKING_NEWS];
-      const maxNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, availableNews.length);
+      // 긴급특보 스케줄링 (유저 요청: 2라운드에서만 3 ~ 4회 변수로 작용)
       room.breakingNewsSchedule = [];
-      
-      for(let i=0; i<maxNewsCount; i++) {
-        if (availableNews.length === 0) break;
-        const idx = Math.floor(Math.random() * availableNews.length);
-        const newsItem = availableNews.splice(idx, 1)[0];
+      if (room.round === 2) {
+        const availableNews = [...BREAKING_NEWS];
+        const maxNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, availableNews.length);
         
-        // 초반 15초 동안은 뉴스가 터지지 않도록 유예 (유저 요청)
-        const gracePeriod = 15;
-        const maxTrigger = Math.max(3, room.timer - gracePeriod);
-        
-        let triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3; // 3 ~ maxTrigger
-        // 같은 시간에 뉴스가 겹치지 않도록 방지
-        while (room.breakingNewsSchedule.some(s => s.time === triggerTime)) {
-          triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3;
+        for(let i=0; i<maxNewsCount; i++) {
+          if (availableNews.length === 0) break;
+          const idx = Math.floor(Math.random() * availableNews.length);
+          const newsItem = availableNews.splice(idx, 1)[0];
+          
+          // 초반 15초 동안은 뉴스가 터지지 않도록 유예 (유저 요청)
+          const gracePeriod = 15;
+          const maxTrigger = Math.max(3, room.timer - gracePeriod);
+          
+          let triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3; // 3 ~ maxTrigger
+          // 같은 시간에 뉴스가 겹치지 않도록 방지
+          while (room.breakingNewsSchedule.some(s => s.time === triggerTime)) {
+            triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3;
+          }
+          
+          room.breakingNewsSchedule.push({ time: triggerTime, news: newsItem });
         }
-        
-        room.breakingNewsSchedule.push({ time: triggerTime, news: newsItem });
       }
       
       if (room.timerInterval) clearInterval(room.timerInterval);

@@ -12,7 +12,7 @@ const GAME_CONFIG = {
 
   // 구글 스프레드시트 CSV 연동 주소 (비워두면 기본 데이터 사용)
   GOOGLE_SHEETS: {
-    COMPANIES_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5pRXGD59eJodpVptQWYP1L1LE_I2QkQf6ebf-wFX1YNsK3LVrpnui13wNaL0teOLfg4_ZT1yqT1PI/pub?gid=859151601&single=true&output=csv", // 주식 종목 CSV 주소
+    COMPANIES_URL: "https://docs.google.com/spread  xsheets/d/e/2PACX-1vQ5pRXGD59eJodpVptQWYP1L1LE_I2QkQf6ebf-wFX1YNsK3LVrpnui13wNaL0teOLfg4_ZT1yqT1PI/pub?gid=859151601&single=true&output=csv", // 주식 종목 CSV 주소
     QUIZ_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5pRXGD59eJodpVptQWYP1L1LE_I2QkQf6ebf-wFX1YNsK3LVrpnui13wNaL0teOLfg4_ZT1yqT1PI/pub?gid=491529611&single=true&output=csv",      // 퀴즈 목록 CSV 주소
     NEWS_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5pRXGD59eJodpVptQWYP1L1LE_I2QkQf6ebf-wFX1YNsK3LVrpnui13wNaL0teOLfg4_ZT1yqT1PI/pub?gid=1492428467&single=true&output=csv",      // 뉴스 특보 CSV 주소
     SCENARIOS_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5pRXGD59eJodpVptQWYP1L1LE_I2QkQf6ebf-wFX1YNsK3LVrpnui13wNaL0teOLfg4_ZT1yqT1PI/pub?gid=780987288&single=true&output=csv"  // 라운드 시나리오 CSV 주소
