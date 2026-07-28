@@ -176,6 +176,11 @@ async function startServer() {
         room.status = 'playing';
         room.round = 1;
         
+        // 라운드 시작 시점 가격 기록
+        room.companies.forEach(c => {
+          c.startPrice = c.basePrice;
+        });
+        
         io.to(roomId).emit('gameStarted', {
           scenario: room.scenario,
           companies: room.companies,
@@ -241,6 +246,11 @@ async function startServer() {
           room.status = 'playing';
           room.players.forEach(p => p.quizSolved = false); // 퀴즈 상태 초기화
 
+          // 라운드 시작 시점 가격 기록
+          room.companies.forEach(c => {
+            c.startPrice = c.basePrice;
+          });
+
           io.to(roomId).emit('roundStarted', {
             round: room.round,
             companies: room.companies,
@@ -258,10 +268,14 @@ async function startServer() {
       
       // 긴급특보 스케줄링 (유저 요청: 2라운드에서만 3 ~ 4회 변수로 작용)
       room.breakingNewsSchedule = [];
+      
       if (room.round === 2) {
+        // 노이즈/페이크 방식이므로 원래 시나리오 방향 필터링을 제거하고 전체 풀에서 무작위 선택
         const availableNews = [...BREAKING_NEWS];
-        const maxNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, availableNews.length);
         
+        // 긴급특보 스케줄링 (유저 요청: 라운드당 3 ~ 4회)
+        const maxNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, availableNews.length);
+        room.breakingNewsSchedule = [];
         for(let i=0; i<maxNewsCount; i++) {
           if (availableNews.length === 0) break;
           const idx = Math.floor(Math.random() * availableNews.length);
@@ -290,7 +304,7 @@ async function startServer() {
         // 긴급특보 발생 체크
         room.breakingNewsSchedule.forEach(sch => {
           if (sch.time === room.timer) {
-            // 변동폭 계산 및 1.2배 증폭 (유저 요청: 조금 줄임)
+            // 구글 시트 기반 변동폭 계산 및 1.2배 보정 (노이즈로 자유롭게 요동침)
             const baseImpact = Math.floor(Math.random() * (sch.news.impact.max - sch.news.impact.min + 1)) + sch.news.impact.min;
             const impact = Math.round(baseImpact * 1.2);
             
@@ -321,13 +335,14 @@ async function startServer() {
       const room = rooms[roomId];
       room.status = 'result';
       
-      // 시나리오에 의한 주가 변동 적용 (특보 이후 복리로 적용됨)
+      // 시나리오에 의한 주가 변동 적용 (중간 뉴스 수치와 상관없이 시작 가격 기준으로 정직하게 수렴)
       const currentRoundData = room.scenario.rounds.find(r => r.round === room.round);
       const changes = currentRoundData.changes;
       
       room.companies.forEach(c => {
         const pct = changes[c.id] || 0;
-        c.basePrice = Math.floor(c.basePrice * (1 + pct / 100));
+        const startP = c.startPrice !== undefined ? c.startPrice : c.basePrice;
+        c.basePrice = Math.floor(startP * (1 + pct / 100));
       });
 
       calculateAssets(room);
