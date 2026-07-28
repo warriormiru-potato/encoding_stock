@@ -24,6 +24,8 @@ const gameScreen = document.getElementById('game-screen');
 const resultScreen = document.getElementById('result-screen');
 const liveRoomList = document.getElementById('live-room-list');
 const viewHintBtn = document.getElementById('view-hint-btn');
+const skipRoundBtn = document.getElementById('skip-round-btn');
+let skipCountdownInterval = null;
 
 // Login
 const playerNameInput = document.getElementById('player-name');
@@ -226,6 +228,16 @@ function setupRound(data, isReconnect = false) {
   resultScreen.style.display = 'none';
   gameScreen.style.display = 'block';
   viewHintBtn.style.display = 'none'; // 매 라운드 시작 시 숨김
+
+  // 스킵 버튼 및 카운트다운 초기화
+  skipRoundBtn.disabled = false;
+  skipRoundBtn.classList.remove('voted');
+  skipRoundBtn.textContent = '⏩ 라운드 스킵 (0/0)';
+  document.getElementById('auto-next-round-notice').style.display = 'none';
+  if (skipCountdownInterval) {
+    clearInterval(skipCountdownInterval);
+    skipCountdownInterval = null;
+  }
 
   if (data.scenario) scenarioTitle.textContent = data.scenario.title;
   roundIndicator.textContent = `Round ${data.round} / 3`;
@@ -476,6 +488,46 @@ socket.on('gameOver', (players) => {
     li.innerHTML = `<span>${idx === 0 ? '🏆 ' : ''}${idx + 1}위: ${p.name}</span> <span>${formatMoney(p.totalAsset)}</span>`;
     rankingList.appendChild(li);
   });
+});
+
+// 스킵 버튼 클릭 이벤트
+skipRoundBtn.addEventListener('click', () => {
+  if (skipRoundBtn.classList.contains('voted')) return;
+  
+  socket.emit('voteSkip', { roomId: currentRoom });
+  skipRoundBtn.classList.add('voted');
+  skipRoundBtn.disabled = true;
+});
+
+// 스킵 현황 업데이트 수신
+socket.on('skipStatusUpdated', ({ votedCount, totalCount }) => {
+  skipRoundBtn.textContent = `⏩ 라운드 스킵 (${votedCount}/${totalCount})`;
+});
+
+// 라운드 스킵 완료 알림 및 8초 자동 카운트다운 시작
+socket.on('roundSkipped', ({ nextRoundIn }) => {
+  // 결과 화면의 컨트롤 숨김 처리 (자동으로 넘어가므로 불필요)
+  document.getElementById('host-next-round-controls').style.display = 'none';
+  document.getElementById('guest-next-round-waiting').style.display = 'none';
+  
+  const noticeEl = document.getElementById('auto-next-round-notice');
+  const timerEl = document.getElementById('auto-next-timer');
+  
+  noticeEl.style.display = 'block';
+  
+  let timeLeft = nextRoundIn;
+  timerEl.textContent = timeLeft;
+  
+  if (skipCountdownInterval) clearInterval(skipCountdownInterval);
+  skipCountdownInterval = setInterval(() => {
+    timeLeft--;
+    if (timeLeft <= 0) {
+      clearInterval(skipCountdownInterval);
+      skipCountdownInterval = null;
+    } else {
+      timerEl.textContent = timeLeft;
+    }
+  }, 1000);
 });
 
 

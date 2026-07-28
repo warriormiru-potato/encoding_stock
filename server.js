@@ -64,7 +64,8 @@ async function startServer() {
         timerInterval: null,
         scenario: null,
         companies: JSON.parse(JSON.stringify(COMPANIES)),
-        breakingNewsSchedule: []
+        breakingNewsSchedule: [],
+        skipVotes: []
       };
 
       const player = { id: playerId, socketId: socket.id, name: playerName, cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH, shares: {}, totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH, quizSolved: false };
@@ -121,6 +122,13 @@ async function startServer() {
           } else {
             // 게임 중이면 현재 랭킹 및 자산 업데이트
             io.to(roomId).emit('updatePlayers', room.players);
+            if (room.status === 'playing') {
+              const connectedPlayers = room.players.filter(p => p.socketId !== null);
+              socket.emit('skipStatusUpdated', {
+                votedCount: room.skipVotes ? room.skipVotes.length : 0,
+                totalCount: connectedPlayers.length
+              });
+            }
           }
         } else {
           socket.emit('rejoinFailed', '해당 방에 참여 중인 정보가 없습니다.');
@@ -136,6 +144,11 @@ async function startServer() {
       if (room && room.status === 'playing') {
         socket.emit('timerUpdate', room.timer);
         socket.emit('updatePlayers', room.players);
+        const connectedPlayers = room.players.filter(p => p.socketId !== null);
+        socket.emit('skipStatusUpdated', {
+          votedCount: room.skipVotes ? room.skipVotes.length : 0,
+          totalCount: connectedPlayers.length
+        });
       }
     });
 
@@ -175,6 +188,7 @@ async function startServer() {
         room.scenario = SCENARIOS.find(s => s.id === scenarioId);
         room.status = 'playing';
         room.round = 1;
+        room.skipVotes = [];
         
         // 라운드 시작 시점 가격 기록
         room.companies.forEach(c => {
@@ -233,31 +247,85 @@ async function startServer() {
       io.to(roomId).emit('updatePlayers', room.players);
     });
 
+    // 다음 라운드 진행 헬퍼
+    function proceedToNextRound(roomId) {
+      const room = rooms[roomId];
+      if (!room) return;
+
+      if (room.autoSkipTimeout) {
+        clearTimeout(room.autoSkipTimeout);
+        room.autoSkipTimeout = null;
+      }
+
+      if (room.round >= 3) {
+        room.status = 'end';
+        io.to(roomId).emit('gameOver', room.players);
+      } else {
+        room.round++;
+        room.status = 'playing';
+        room.players.forEach(p => p.quizSolved = false); // 퀴즈 상태 초기화
+        room.skipVotes = []; // 스킵 투표 초기화
+
+        // 라운드 시작 시점 가격 기록
+        room.companies.forEach(c => {
+          c.startPrice = c.basePrice;
+        });
+
+        io.to(roomId).emit('roundStarted', {
+          round: room.round,
+          companies: room.companies,
+          players: room.players
+        });
+        startRoundTimer(roomId);
+      }
+    }
+
     // 다음 라운드 진행
     socket.on('nextRound', ({ roomId }) => {
       const room = rooms[roomId];
       const requester = room?.players.find(p => p.socketId === socket.id);
       if (room && requester && room.host === requester.id) {
-        if (room.round >= 3) {
-          room.status = 'end';
-          io.to(roomId).emit('gameOver', room.players);
-        } else {
-          room.round++;
-          room.status = 'playing';
-          room.players.forEach(p => p.quizSolved = false); // 퀴즈 상태 초기화
+        proceedToNextRound(roomId);
+      }
+    });
 
-          // 라운드 시작 시점 가격 기록
-          room.companies.forEach(c => {
-            c.startPrice = c.basePrice;
-          });
+    // 스킵 투표 처리
+    socket.on('voteSkip', ({ roomId }) => {
+      const room = rooms[roomId];
+      if (!room || room.status !== 'playing') return;
 
-          io.to(roomId).emit('roundStarted', {
-            round: room.round,
-            companies: room.companies,
-            players: room.players
-          });
-          startRoundTimer(roomId);
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player) return;
+
+      if (!room.skipVotes) {
+        room.skipVotes = [];
+      }
+
+      if (!room.skipVotes.includes(player.id)) {
+        room.skipVotes.push(player.id);
+      }
+
+      const connectedPlayers = room.players.filter(p => p.socketId !== null);
+      
+      io.to(roomId).emit('skipStatusUpdated', {
+        votedCount: room.skipVotes.length,
+        totalCount: connectedPlayers.length
+      });
+
+      if (room.skipVotes.length >= connectedPlayers.length) {
+        if (room.timerInterval) {
+          clearInterval(room.timerInterval);
+          room.timerInterval = null;
         }
+
+        endRound(roomId);
+
+        io.to(roomId).emit('roundSkipped', { nextRoundIn: 8 });
+
+        if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
+        room.autoSkipTimeout = setTimeout(() => {
+          proceedToNextRound(roomId);
+        }, 8000);
       }
     });
 
@@ -395,7 +463,37 @@ async function startServer() {
             io.emit('roomListUpdate', getActiveRooms());
           } else {
             // 게임이 시작된 경우 접속만 끊김 처리 (데이터 유지)
-            room.players[pIdx].socketId = null;
+            const disconnectedPlayer = room.players[pIdx];
+            disconnectedPlayer.socketId = null;
+            
+            // 스킵 목록에서 제거
+            if (room.skipVotes) {
+              room.skipVotes = room.skipVotes.filter(id => id !== disconnectedPlayer.id);
+            }
+
+            // 게임 중이었다면 스킵 상황 체크 및 업데이트
+            if (room.status === 'playing') {
+              const connectedPlayers = room.players.filter(p => p.socketId !== null);
+              if (connectedPlayers.length > 0) {
+                if (room.skipVotes && room.skipVotes.length >= connectedPlayers.length) {
+                  if (room.timerInterval) {
+                    clearInterval(room.timerInterval);
+                    room.timerInterval = null;
+                  }
+                  endRound(roomId);
+                  io.to(roomId).emit('roundSkipped', { nextRoundIn: 8 });
+                  if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
+                  room.autoSkipTimeout = setTimeout(() => {
+                    proceedToNextRound(roomId);
+                  }, 8000);
+                } else {
+                  io.to(roomId).emit('skipStatusUpdated', {
+                    votedCount: room.skipVotes ? room.skipVotes.length : 0,
+                    totalCount: connectedPlayers.length
+                  });
+                }
+              }
+            }
           }
         }
       }

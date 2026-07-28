@@ -116,6 +116,11 @@
           <!-- JS 동적 생성 -->
         </div>
       </div>
+      
+      <!-- 우측 하단 스킵 버튼 -->
+      <div class="skip-container">
+        <button id="skip-round-btn" class="skip-btn">⏩ 라운드 스킵 (0/0)</button>
+      </div>
     </section>
 
     <!-- 4. 라운드 종료 / 최종 결과 화면 -->
@@ -132,6 +137,11 @@
       </div>
       <div id="guest-next-round-waiting" style="display:none; margin-top:20px;">
         <p>방장이 다음 라운드를 시작할 때까지 대기해주세요...</p>
+      </div>
+
+      <!-- 자동 다음 라운드 진행 안내 -->
+      <div id="auto-next-round-notice" class="glass" style="display:none; margin-top:20px; padding:15px; border-color:var(--accent); background:rgba(139, 92, 246, 0.1); text-align:center;">
+        <span style="font-size:1.2rem; font-weight:bold; color:#fbbf24;">⏩ 모든 플레이어가 스킵하였습니다. <span id="auto-next-timer">8</span>초 후 다음 라운드가 시작됩니다...</span>
       </div>
     </section>
 
