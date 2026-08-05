@@ -72,14 +72,21 @@ async function loadGameData() {
     
     const changes = {};
     Object.keys(r).forEach(k => {
-      if (!['scenarioId', 'scenarioTitle', 'scenarioDesc', 'round', 'hint'].includes(k)) {
+      if (!['scenarioId', 'scenarioTitle', 'scenarioDesc', 'round', 'hint', 'shortHint', 'longHint'].includes(k)) {
         if (r[k]) changes[k] = parseInt(r[k], 10);
       }
     });
 
+    // 짧은 힌트 & 긴 힌트 파싱 (r.shortHint, r.longHint 연동 및 r.hint fallback)
+    const rawHint = r.hint || "";
+    const shortH = r.shortHint && r.shortHint.trim() !== "" ? r.shortHint : (rawHint ? rawHint : "힌트 정보가 없습니다.");
+    const longH = r.longHint && r.longHint.trim() !== "" ? r.longHint : (rawHint ? rawHint : "상세 힌트 정보가 없습니다.");
+
     scMap[sId].rounds.push({
       round: parseInt(r.round, 10),
-      hint: r.hint,
+      hint: rawHint,
+      shortHint: shortH,
+      longHint: longH,
       changes: changes
     });
   });

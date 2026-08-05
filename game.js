@@ -367,20 +367,64 @@ function renderStocks(companies, players) {
   });
 }
 
-// 퀴즈 팝업 및 힌트 보기
+// 퀴즈 팝업 및 힌트 선택/다시보기
 let currentRoundDataForQuiz = null;
-let currentHintHtml = "";
+let currentShortHintHtml = "";
+let currentLongHintHtml = "";
+let selectedHintType = "short"; // "short" 또는 "long"
+
+const quizHintSelectWrapper = document.getElementById('quiz-hint-select-wrapper');
+const selectShortHintBtn = document.getElementById('select-short-hint-btn');
+const selectLongHintBtn = document.getElementById('select-long-hint-btn');
+
+if (selectShortHintBtn && selectLongHintBtn) {
+  selectShortHintBtn.addEventListener('click', () => {
+    selectedHintType = "short";
+    selectShortHintBtn.classList.add('active');
+    selectLongHintBtn.classList.remove('active');
+    updateHintBoxDisplay();
+  });
+
+  selectLongHintBtn.addEventListener('click', () => {
+    selectedHintType = "long";
+    selectLongHintBtn.classList.add('active');
+    selectShortHintBtn.classList.remove('active');
+    updateHintBoxDisplay();
+  });
+}
+
+function updateHintBoxDisplay() {
+  if (!quizHintBox) return;
+  if (selectedHintType === "short") {
+    quizHintBox.innerHTML = `<strong>⚡ 짧은 핵심 힌트:</strong><br>${currentShortHintHtml || "짧은 힌트가 없습니다."}`;
+  } else {
+    quizHintBox.innerHTML = `<strong>📜 긴 상세 힌트:</strong><br>${currentLongHintHtml || "긴 힌트가 없습니다."}`;
+  }
+}
 
 viewHintBtn.addEventListener('click', () => {
-  if (!currentHintHtml) return;
+  if (!currentShortHintHtml && !currentLongHintHtml) return;
   document.getElementById('quiz-modal-title').textContent = '💡 독점 힌트 다시 보기';
   document.getElementById('quiz-modal-desc').style.display = 'none';
   document.getElementById('quiz-question-container').style.display = 'none';
 
   quizResult.style.display = 'block';
   quizExplain.innerHTML = '';
+
+  if (quizHintSelectWrapper) {
+    quizHintSelectWrapper.style.display = 'flex';
+    if (selectedHintType === "short") {
+      selectShortHintBtn.classList.add('active');
+      selectLongHintBtn.classList.remove('active');
+    } else {
+      selectLongHintBtn.classList.add('active');
+      selectShortHintBtn.classList.remove('active');
+    }
+  }
+
   quizHintBox.style.display = 'block';
-  quizHintBox.innerHTML = currentHintHtml;
+  updateHintBoxDisplay();
+
   closeQuizBtn.style.display = 'inline-block';
   closeQuizBtn.textContent = '닫기';
   quizModal.style.display = 'flex';
@@ -401,6 +445,7 @@ function showQuizModal(data) {
   quizOptions.innerHTML = '';
   quizResult.style.display = 'none';
   quizHintBox.style.display = 'none';
+  if (quizHintSelectWrapper) quizHintSelectWrapper.style.display = 'none';
   closeQuizBtn.style.display = 'none';
 
   if (quiz.type === 'OX') {
@@ -436,17 +481,29 @@ function submitQuiz(quiz, selected) {
 
   if (isCorrect) {
     socket.emit('quizSolved', { roomId: currentRoom });
-    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">정답입니다!</span><br>${quiz.explain}`;
+    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">🎉 정답입니다! 힌트 타입을 선택하세요.</span><br>${quiz.explain}`;
+
+    currentShortHintHtml = currentRoundDataForQuiz ? (currentRoundDataForQuiz.shortHint || currentRoundDataForQuiz.hint) : "";
+    currentLongHintHtml = currentRoundDataForQuiz ? (currentRoundDataForQuiz.longHint || currentRoundDataForQuiz.hint) : "";
+    selectedHintType = "short"; // 기본 짧은 힌트 선택
+
+    if (quizHintSelectWrapper) {
+      quizHintSelectWrapper.style.display = 'flex';
+      selectShortHintBtn.classList.add('active');
+      selectLongHintBtn.classList.remove('active');
+    }
+
     quizHintBox.style.display = 'block';
-    currentHintHtml = `<strong>💡 입수된 독점 힌트:</strong><br>${currentRoundDataForQuiz.hint}`;
-    quizHintBox.innerHTML = currentHintHtml;
+    updateHintBoxDisplay();
     viewHintBtn.style.display = 'inline-block'; // 힌트 다시보기 버튼 노출
   } else {
     let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
     quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">오답입니다.</span> (정답: ${corrAns})<br>${quiz.explain}`;
+    if (quizHintSelectWrapper) quizHintSelectWrapper.style.display = 'none';
     quizHintBox.style.display = 'block';
     quizHintBox.innerHTML = `<em>오답으로 인해 힌트를 얻지 못했습니다. 감각으로 투자하세요!</em>`;
-    currentHintHtml = "";
+    currentShortHintHtml = "";
+    currentLongHintHtml = "";
   }
 }
 
@@ -580,6 +637,47 @@ function renderStockChart(companies) {
   });
 }
 
+// 차트 양 옆 인물 GIF 카운터 및 렌더링
+function renderCharacterGifs(companies, changes) {
+  const leftPanel = document.getElementById('chart-left-characters');
+  const rightPanel = document.getElementById('chart-right-characters');
+
+  if (!leftPanel || !rightPanel) return;
+
+  leftPanel.innerHTML = '';
+  rightPanel.innerHTML = '';
+
+  const leftCompanyIds = ['jswtech', 'shcdark', 'lhysemi'];
+
+  companies.forEach(c => {
+    const cidLower = (c.id || '').toLowerCase();
+    const pct = changes ? (changes[c.id] || 0) : 0;
+    const isUp = pct > 0;
+    const sign = isUp ? '+' : '';
+    const gifFile = `assets/gifs/${cidLower}_${isUp ? 'up' : 'down'}.gif`;
+
+    const card = document.createElement('div');
+    card.className = 'character-card';
+    card.innerHTML = `
+      <div class="character-avatar-wrap">
+        <img src="${gifFile}" alt="${c.name}" class="character-gif" 
+             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';" />
+        <span class="character-fallback-icon" style="display:none;">${isUp ? '🎉' : '😭'}</span>
+      </div>
+      <div class="character-name">${c.name}</div>
+      <div class="character-status ${isUp ? 'status-up' : 'status-down'}">
+        ${isUp ? '▲' : '▼'} ${sign}${pct}%
+      </div>
+    `;
+
+    if (leftCompanyIds.includes(cidLower) || leftPanel.children.length < 3) {
+      leftPanel.appendChild(card);
+    } else {
+      rightPanel.appendChild(card);
+    }
+  });
+}
+
 // 라운드 종료
 socket.on('roundEnded', (data) => {
   gameScreen.style.display = 'none';
@@ -597,9 +695,10 @@ socket.on('roundEnded', (data) => {
   });
   document.getElementById('result-stock-changes').innerHTML = changeHtml;
 
-  // 라운드 종료 시 주식 6개 가격 꺾은선 그래프 렌더링
+  // 라운드 종료 시 주식 6개 가격 꺾은선 그래프 및 양 옆 인물 GIF 렌더링
   if (data.companies) {
     renderStockChart(data.companies);
+    renderCharacterGifs(data.companies, data.changes);
   }
 
   const sortedPlayers = [...data.players].sort((a, b) => b.totalAsset - a.totalAsset);

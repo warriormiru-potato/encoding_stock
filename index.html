@@ -129,11 +129,21 @@
       <h2 id="result-title">라운드 결과</h2>
       <div id="result-stock-changes" style="margin: 20px 0; text-align:left; font-size:1.1rem; line-height:1.6;"></div>
 
-      <!-- 라운드별 주가 변동 꺾은선 그래프 -->
+      <!-- 라운드별 주가 변동 꺾은선 그래프 및 인물 GIF 패널 -->
       <div id="chart-section" class="glass" style="margin: 25px 0; padding: 24px; text-align: center; background: #ffffff;">
-        <h3 style="margin-bottom: 15px; color: #0f172a;">📈 주식 6종목 라운드별 가격 추이</h3>
-        <div style="position: relative; height: 400px; width: 100%;">
-          <canvas id="stock-chart-canvas"></canvas>
+        <h3 style="margin-bottom: 20px; color: #0f172a;">📈 주식 6종목 라운드별 가격 추이 및 캐릭터 반응</h3>
+        
+        <div class="chart-flex-wrapper">
+          <!-- 좌측 인물 3명 (Jswtech, Shcdark, Lhysemi) -->
+          <div id="chart-left-characters" class="character-panel"></div>
+
+          <!-- 중앙 꺾은선 그래프 -->
+          <div class="chart-canvas-container">
+            <canvas id="stock-chart-canvas"></canvas>
+          </div>
+
+          <!-- 우측 인물 3명 (Nojunheok, Parkjubin, Weclass) -->
+          <div id="chart-right-characters" class="character-panel"></div>
         </div>
       </div>
 
@@ -171,6 +181,19 @@
 
       <div class="quiz-result" id="quiz-result" style="display:none;">
         <p id="quiz-explain" style="margin-bottom:15px;"></p>
+
+        <!-- 힌트 타입 선택 옵션 카드 (짧은 지문 / 긴 지문) -->
+        <div id="quiz-hint-select-wrapper" class="hint-select-wrapper" style="display:none;">
+          <div id="select-short-hint-btn" class="hint-opt-card active">
+            <div class="hint-opt-title">⚡ 짧은 힌트</div>
+            <div class="hint-opt-desc">핵심 요약만 빠르게 확인</div>
+          </div>
+          <div id="select-long-hint-btn" class="hint-opt-card">
+            <div class="hint-opt-title">📜 긴 힌트</div>
+            <div class="hint-opt-desc">배경과 맥락까지 상세 확인</div>
+          </div>
+        </div>
+
         <div id="quiz-hint-box" class="hint-box"></div>
         <button id="close-quiz-btn" style="margin-top:15px; width:100%;">확인</button>
       </div>
