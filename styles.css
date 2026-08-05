@@ -1,17 +1,17 @@
 /* styles.css - 반도체 모의투자 게임 멀티플레이어 스타일시트 */
-/* [가이드라인] 디자인 테마 및 색상 고대비/시인성 강화 버전 */
+/* [라이트 테마 & 고대비 텍스트 스타일] */
 :root {
-  --bg-dark: #0a0f1d;       /* 전체 배경 색상 (깊고 또렷한 다크 네이비) */
-  --bg-card: rgba(15, 23, 42, 0.85); /* 글래스모피즘 카드 배경색 (명암대비 강화) */
-  --primary: #2563eb;       /* 주요 버튼 및 강조 색상 (선명한 파란색) */
+  --bg-dark: #f8fafc;       /* 전체 배경 색상 (화사하고 안정적인 연한 슬레이트 백그라운드) */
+  --bg-card: rgba(255, 255, 255, 0.92); /* 글래스모피즘 라이트 카드 배경색 */
+  --primary: #2563eb;       /* 주요 버튼 및 강조 색상 (비비드 블루) */
   --primary-hover: #1d4ed8; /* 주요 버튼 호버 시 색상 */
-  --accent: #a855f7;        /* 보조 포인트 색상 (네온 보라색) */
-  --success: #22c55e;       /* 상승/성공/정답 표시 색상 (비비드 그린) */
-  --danger: #ff4d4d;        /* 하락/위험/오답/강퇴 표시 색상 (비비드 레드) */
-  --text-main: #ffffff;     /* 일반 텍스트 색상 (선명한 순백색) */
-  --text-muted: #cbd5e1;    /* 설명글 텍스트 색상 (밝은 시안 회색으로 가독성 향상) */
-  --border-color: rgba(255, 255, 255, 0.22); /* 카드 테두리 선 색상 */
-  --glass-blur: blur(14px);  /* 글래스모피즘 블러 강도 */
+  --accent: #7c3aed;        /* 보조 포인트 색상 (딥 바이올렛) */
+  --success: #16a34a;       /* 상승/성공/정답 표시 색상 (선명한 그린) */
+  --danger: #dc2626;        /* 하락/위험/오답/강퇴 표시 색상 (선명한 레드) */
+  --text-main: #0f172a;     /* 일반 텍스트 색상 (선명한 딥 차콜/다크 슬레이트) */
+  --text-muted: #475569;    /* 설명글 텍스트 색상 (또렷한 어두운 회색) */
+  --border-color: rgba(203, 213, 225, 0.85); /* 카드 테두리 선 색상 */
+  --glass-blur: blur(12px);  /* 글래스모피즘 블러 강도 */
 }
 
 * {
@@ -22,7 +22,7 @@
 }
 
 body {
-  background: radial-gradient(circle at top right, #1e1b4b 0%, var(--bg-dark) 75%);
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   color: var(--text-main);
   min-height: 100vh;
   display: flex;
@@ -30,14 +30,14 @@ body {
   overflow-x: hidden;
 }
 
-/* Glassmorphism Utilities */
+/* Glassmorphism Utilities (Light Mode) */
 .glass {
   background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-color);
   border-radius: 16px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
 }
 
 .container {
@@ -55,8 +55,8 @@ header {
 
 h1 {
   font-size: 2.6rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #38bdf8 0%, #c084fc 100%);
+  font-weight: 900;
+  background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 10px;
@@ -66,31 +66,31 @@ h1 {
 h2, h3, h4 {
   margin-bottom: 15px;
   color: var(--text-main);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 button {
   background: var(--primary);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: none;
   padding: 11px 22px;
   border-radius: 10px;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 700;
   transition: all 0.2s ease-in-out;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 button:hover {
   background: var(--primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
 }
 
 button:disabled {
-  background: #475569;
-  color: #94a3b8;
+  background: #cbd5e1;
+  color: #64748b;
   border-color: transparent;
   cursor: not-allowed;
   transform: none;
@@ -99,21 +99,21 @@ button:disabled {
 
 .btn-danger {
   background: var(--danger);
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 .btn-danger:hover {
-  background: #dc2626;
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+  background: #b91c1c;
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
 }
 
 input, select {
   padding: 12px 16px;
   border-radius: 10px;
-  border: 1px solid var(--border-color);
-  background: rgba(15, 23, 42, 0.85);
-  color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -123,8 +123,8 @@ input::placeholder {
 }
 
 input:focus, select:focus {
-  border-color: #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 .card {
@@ -145,13 +145,15 @@ input:focus, select:focus {
 }
 
 .player-list li {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   padding: 15px;
   margin-bottom: 10px;
   border-radius: 10px;
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0f172a;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
 }
 
 /* Game Screen */
@@ -164,20 +166,21 @@ input:focus, select:focus {
 
 .timer-box {
   font-size: 2.2rem;
-  font-weight: 800;
-  color: #fef08a;
-  background: rgba(15, 23, 42, 0.9);
+  font-weight: 900;
+  color: #78350f;
+  background: #fef3c7;
   padding: 10px 24px;
   border-radius: 14px;
-  border: 2px solid #fbbf24;
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.35);
+  border: 2px solid #f59e0b;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
   letter-spacing: 1px;
 }
 
 .timer-urgent {
-  color: #ff4d4d;
-  border-color: #ff4d4d;
-  box-shadow: 0 0 25px rgba(255, 77, 77, 0.6);
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
   animation: pulse 1s infinite;
 }
 
@@ -201,8 +204,9 @@ input:focus, select:focus {
 
 .my-status-card {
   padding: 20px;
-  border-color: #38bdf8;
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+  background: #ffffff;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.15);
 }
 
 .ranking-card {
@@ -213,7 +217,7 @@ input:focus, select:focus {
 .player-name {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #c084fc;
+  color: #6d28d9;
 }
 
 /* Stocks Panel */
@@ -228,42 +232,43 @@ input:focus, select:focus {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  transition: transform 0.2s, border-color 0.2s;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .stock-card:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: #cbd5e1;
   transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
 }
 
 .stock-name {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .stock-desc {
   font-size: 0.95rem;
-  color: var(--text-muted);
+  color: #475569;
   line-height: 1.4;
+  font-weight: 500;
 }
 
 .stock-price {
   font-size: 1.65rem;
-  font-weight: 800;
+  font-weight: 900;
   margin: 10px 0;
   letter-spacing: -0.5px;
 }
 
 .price-up {
-  color: var(--success);
-  text-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+  color: #16a34a;
 }
 .price-down {
-  color: var(--danger);
-  text-shadow: 0 0 10px rgba(255, 77, 77, 0.4);
+  color: #dc2626;
 }
 
 .trade-controls {
@@ -277,12 +282,13 @@ input:focus, select:focus {
   width: 70px;
   text-align: center;
   font-weight: 700;
+  border: 1.5px solid #cbd5e1;
 }
 
 .my-shares {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #c084fc;
+  color: #7c3aed;
   margin-top: 5px;
 }
 
@@ -290,8 +296,8 @@ input:focus, select:focus {
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
   display: none;
   justify-content: center;
   align-items: center;
@@ -303,6 +309,9 @@ input:focus, select:focus {
   max-width: 600px;
   padding: 30px;
   text-align: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
 .quiz-options {
@@ -313,36 +322,38 @@ input:focus, select:focus {
 }
 
 .quiz-options button {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-color);
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
   text-align: left;
   padding: 16px;
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: none;
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .quiz-options button:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: #38bdf8;
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
 }
 
 .quiz-result {
   margin-top: 20px;
   font-size: 1.15rem;
-  font-weight: 600;
+  font-weight: 700;
   min-height: 80px;
+  color: #0f172a;
 }
 
 .hint-box {
   margin-top: 20px;
   padding: 16px;
-  background: rgba(168, 85, 247, 0.25);
-  border: 1.5px solid var(--accent);
+  background: #f3e8ff;
+  border: 1.5px solid #a855f7;
   border-radius: 10px;
-  color: #ffffff;
+  color: #581c87;
   display: none;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* Result Screen */
@@ -362,17 +373,20 @@ input:focus, select:focus {
   padding: 16px 22px;
   margin-bottom: 12px;
   font-size: 1.2rem;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
+  color: #0f172a;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
 }
 
 .ranking-item.first-place {
-  background: rgba(251, 191, 36, 0.25);
-  border: 2px solid #fbbf24;
-  font-weight: 800;
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+  background: #fef3c7;
+  border: 2px solid #f59e0b;
+  color: #78350f;
+  font-weight: 900;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
 }
 
 @media (max-width: 768px) {
@@ -392,7 +406,7 @@ input:focus, select:focus {
   z-index: 999;
   padding: 20px;
   border-radius: 14px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -403,12 +417,12 @@ input:focus, select:focus {
 }
 
 .news-banner.good-news {
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.95), rgba(153, 27, 27, 0.95)); /* 상승 특보: 붉은색 강렬 강조 */
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); /* 상승 특보: 강렬 레드 */
   border: 2px solid #fca5a5;
 }
 
 .news-banner.bad-news {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(30, 64, 175, 0.95)); /* 하락 특보: 푸른색 강렬 강조 */
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); /* 하락 특보: 강렬 블루 */
   border: 2px solid #93c5fd;
 }
 
@@ -427,7 +441,7 @@ input:focus, select:focus {
   font-size: 1.5rem;
   margin-left: 10px;
   padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 8px;
 }
 
@@ -450,16 +464,16 @@ input:focus, select:focus {
 }
 
 .skip-btn {
-  background: rgba(15, 23, 42, 0.9);
+  background: #ffffff;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
-  color: var(--text-main);
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
   padding: 12px 24px;
   border-radius: 30px;
   font-size: 1rem;
   font-weight: 800;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -468,24 +482,27 @@ input:focus, select:focus {
 
 .skip-btn:hover:not(:disabled) {
   background: var(--accent);
-  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  border-color: transparent;
   transform: translateY(-3px);
-  box-shadow: 0 6px 24px rgba(168, 85, 247, 0.5);
+  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.35);
 }
 
 .skip-btn:disabled {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: var(--text-muted);
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 
 .skip-btn.voted {
   background: var(--success);
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 18px rgba(34, 197, 94, 0.5);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 18px rgba(22, 163, 74, 0.35);
   cursor: not-allowed;
 }
+
 
 
 
