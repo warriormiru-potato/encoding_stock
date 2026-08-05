@@ -367,63 +367,46 @@ function renderStocks(companies, players) {
   });
 }
 
-// 퀴즈 팝업 및 힌트 선택/다시보기
+// 2단계 연속 퀴즈 및 2개 힌트(hint1, hint2) 해금 시스템
 let currentRoundDataForQuiz = null;
-let currentShortHintHtml = "";
-let currentLongHintHtml = "";
-let selectedHintType = "short"; // "short" 또는 "long"
+let currentHint1Text = "";
+let currentHint2Text = "";
+let currentQuizStage = 1; // 1차 퀴즈 or 2차 퀴즈
+let correctQuizCount = 0; // 0개, 1개, 2개 정답
+let currentQuizObj = null;
 
-const quizHintSelectWrapper = document.getElementById('quiz-hint-select-wrapper');
-const selectShortHintBtn = document.getElementById('select-short-hint-btn');
-const selectLongHintBtn = document.getElementById('select-long-hint-btn');
+const quizHint1Box = document.getElementById('quiz-hint1-box');
+const quizHint2Box = document.getElementById('quiz-hint2-box');
 
-if (selectShortHintBtn && selectLongHintBtn) {
-  selectShortHintBtn.addEventListener('click', () => {
-    selectedHintType = "short";
-    selectShortHintBtn.classList.add('active');
-    selectLongHintBtn.classList.remove('active');
-    updateHintBoxDisplay();
-  });
+function updateHintDisplay() {
+  if (!quizHint1Box || !quizHint2Box) return;
 
-  selectLongHintBtn.addEventListener('click', () => {
-    selectedHintType = "long";
-    selectLongHintBtn.classList.add('active');
-    selectShortHintBtn.classList.remove('active');
-    updateHintBoxDisplay();
-  });
-}
-
-function updateHintBoxDisplay() {
-  if (!quizHintBox) return;
-  if (selectedHintType === "short") {
-    quizHintBox.innerHTML = `<strong>⚡ 짧은 핵심 힌트:</strong><br>${currentShortHintHtml || "짧은 힌트가 없습니다."}`;
-  } else {
-    quizHintBox.innerHTML = `<strong>📜 긴 상세 힌트:</strong><br>${currentLongHintHtml || "긴 힌트가 없습니다."}`;
+  if (correctQuizCount === 0) {
+    quizHint1Box.style.display = 'block';
+    quizHint1Box.innerHTML = `<em>🔒 퀴즈 오답으로 인해 힌트 1을 얻지 못했습니다.</em>`;
+    quizHint2Box.style.display = 'block';
+    quizHint2Box.innerHTML = `<em>🔒 퀴즈 오답으로 인해 힌트 2를 얻지 못했습니다.</em>`;
+  } else if (correctQuizCount === 1) {
+    quizHint1Box.style.display = 'block';
+    quizHint1Box.innerHTML = `<strong>💡 [획득] 힌트 1 (애매한 힌트):</strong><br>${currentHint1Text || "힌트 1 데이터가 없습니다."}`;
+    quizHint2Box.style.display = 'block';
+    quizHint2Box.innerHTML = `<strong>🔒 힌트 2 (분명한 힌트):</strong><br><em>퀴즈 2개를 모두 정답 맞추어야 추가 해금됩니다!</em>`;
+  } else if (correctQuizCount >= 2) {
+    quizHint1Box.style.display = 'block';
+    quizHint1Box.innerHTML = `<strong>💡 [획득] 힌트 1 (애매한 힌트):</strong><br>${currentHint1Text || "힌트 1 데이터가 없습니다."}`;
+    quizHint2Box.style.display = 'block';
+    quizHint2Box.innerHTML = `<strong>🔥 [최종 해금!] 힌트 2 (분명한 힌트):</strong><br>${currentHint2Text || "힌트 2 데이터가 없습니다."}`;
   }
 }
 
 viewHintBtn.addEventListener('click', () => {
-  if (!currentShortHintHtml && !currentLongHintHtml) return;
-  document.getElementById('quiz-modal-title').textContent = '💡 독점 힌트 다시 보기';
+  document.getElementById('quiz-modal-title').textContent = '💡 입수한 독점 힌트 다시 보기';
   document.getElementById('quiz-modal-desc').style.display = 'none';
   document.getElementById('quiz-question-container').style.display = 'none';
 
   quizResult.style.display = 'block';
   quizExplain.innerHTML = '';
-
-  if (quizHintSelectWrapper) {
-    quizHintSelectWrapper.style.display = 'flex';
-    if (selectedHintType === "short") {
-      selectShortHintBtn.classList.add('active');
-      selectLongHintBtn.classList.remove('active');
-    } else {
-      selectLongHintBtn.classList.add('active');
-      selectShortHintBtn.classList.remove('active');
-    }
-  }
-
-  quizHintBox.style.display = 'block';
-  updateHintBoxDisplay();
+  updateHintDisplay();
 
   closeQuizBtn.style.display = 'inline-block';
   closeQuizBtn.textContent = '닫기';
@@ -432,46 +415,58 @@ viewHintBtn.addEventListener('click', () => {
 
 function showQuizModal(data) {
   if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
+  currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
+  currentHint2Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint2 || currentRoundDataForQuiz.hint || "") : "";
 
+  currentQuizStage = 1;
+  correctQuizCount = 0;
+
+  renderQuizStage(1);
+  quizModal.style.display = 'flex';
+}
+
+function renderQuizStage(stage) {
+  currentQuizStage = stage;
   const qIdx = Math.floor(Math.random() * window.QUIZ_BANK.length);
-  const quiz = window.QUIZ_BANK[qIdx];
+  currentQuizObj = window.QUIZ_BANK[qIdx];
 
-  document.getElementById('quiz-modal-title').textContent = '라운드 시작! 반도체 상식 퀴즈';
+  const stageBadgeText = stage === 1 ? '📝 [퀴즈 1/2] 반도체 상식 (1차 도전)' : '🔥 [퀴즈 2/2] 최종 힌트 해금 도전! (2차)';
+  document.getElementById('quiz-modal-title').innerHTML = `<span class="quiz-step-badge">${stageBadgeText}</span><br>라운드 퀴즈`;
   document.getElementById('quiz-modal-desc').style.display = 'block';
+  document.getElementById('quiz-modal-desc').textContent = stage === 1 ? 
+    '1차 퀴즈를 맞추면 힌트 1(애매한 힌트)이 해금되며 2차 퀴즈에 도전할 수 있습니다!' :
+    '2차 퀴즈까지 정답을 맞추면 힌트 2(분명한 힌트)까지 추가 해금됩니다!';
+
   document.getElementById('quiz-question-container').style.display = 'block';
   document.getElementById('quiz-question').style.display = 'block';
+  quizQuestion.textContent = currentQuizObj.question;
 
-  quizQuestion.textContent = quiz.question;
   quizOptions.innerHTML = '';
   quizResult.style.display = 'none';
-  quizHintBox.style.display = 'none';
-  if (quizHintSelectWrapper) quizHintSelectWrapper.style.display = 'none';
+  if (quizHint1Box) quizHint1Box.style.display = 'none';
+  if (quizHint2Box) quizHint2Box.style.display = 'none';
   closeQuizBtn.style.display = 'none';
 
-  if (quiz.type === 'OX') {
+  if (currentQuizObj.type === 'OX') {
     ['O', 'X'].forEach(opt => {
       const btn = document.createElement('button');
       btn.textContent = opt;
-      btn.addEventListener('click', () => submitQuiz(quiz, opt));
+      btn.addEventListener('click', () => submitQuiz(currentQuizObj, opt));
       quizOptions.appendChild(btn);
     });
   } else {
-    quiz.options.forEach((opt, idx) => {
+    currentQuizObj.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
       btn.textContent = opt;
-      btn.addEventListener('click', () => submitQuiz(quiz, idx));
+      btn.addEventListener('click', () => submitQuiz(currentQuizObj, idx));
       quizOptions.appendChild(btn);
     });
   }
-
-  quizModal.style.display = 'flex';
 }
 
 function submitQuiz(quiz, selected) {
   quizOptions.innerHTML = '';
   quizResult.style.display = 'block';
-  closeQuizBtn.style.display = 'inline-block';
-  closeQuizBtn.textContent = '확인';
 
   document.getElementById('quiz-modal-title').textContent = '퀴즈 결과';
   document.getElementById('quiz-modal-desc').style.display = 'none';
@@ -479,31 +474,66 @@ function submitQuiz(quiz, selected) {
 
   const isCorrect = (quiz.answer === selected);
 
-  if (isCorrect) {
-    socket.emit('quizSolved', { roomId: currentRoom });
-    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">🎉 정답입니다! 힌트 타입을 선택하세요.</span><br>${quiz.explain}`;
+  if (currentQuizStage === 1) {
+    if (isCorrect) {
+      correctQuizCount = 1;
+      socket.emit('quizSolved', { roomId: currentRoom });
+      
+      quizExplain.innerHTML = `
+        <div style="color:var(--success); font-weight:bold; font-size:1.15rem; margin-bottom:8px;">
+          🎉 1차 퀴즈 정답입니다! [힌트 1 (애매한 힌트)] 해금 완료!
+        </div>
+        <div>${quiz.explain}</div>
+        <button id="next-quiz-btn" style="margin-top:16px; background:var(--accent); color:#ffffff; padding:12px 20px; font-size:1rem; font-weight:bold; border-radius:10px; cursor:pointer;">
+          🔥 2차 퀴즈 도전하고 힌트 2까지 얻기 ➔
+        </button>
+      `;
 
-    currentShortHintHtml = currentRoundDataForQuiz ? (currentRoundDataForQuiz.shortHint || currentRoundDataForQuiz.hint) : "";
-    currentLongHintHtml = currentRoundDataForQuiz ? (currentRoundDataForQuiz.longHint || currentRoundDataForQuiz.hint) : "";
-    selectedHintType = "short"; // 기본 짧은 힌트 선택
+      updateHintDisplay();
+      closeQuizBtn.style.display = 'inline-block';
+      closeQuizBtn.textContent = '닫기 및 힌트 1만 가져가기';
+      viewHintBtn.style.display = 'inline-block';
 
-    if (quizHintSelectWrapper) {
-      quizHintSelectWrapper.style.display = 'flex';
-      selectShortHintBtn.classList.add('active');
-      selectLongHintBtn.classList.remove('active');
+      document.getElementById('next-quiz-btn').addEventListener('click', () => {
+        renderQuizStage(2);
+      });
+
+    } else {
+      correctQuizCount = 0;
+      let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
+      quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">1차 퀴즈 오답입니다.</span> (정답: ${corrAns})<br>${quiz.explain}`;
+      updateHintDisplay();
+      closeQuizBtn.style.display = 'inline-block';
+      closeQuizBtn.textContent = '확인';
     }
-
-    quizHintBox.style.display = 'block';
-    updateHintBoxDisplay();
-    viewHintBtn.style.display = 'inline-block'; // 힌트 다시보기 버튼 노출
-  } else {
-    let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
-    quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">오답입니다.</span> (정답: ${corrAns})<br>${quiz.explain}`;
-    if (quizHintSelectWrapper) quizHintSelectWrapper.style.display = 'none';
-    quizHintBox.style.display = 'block';
-    quizHintBox.innerHTML = `<em>오답으로 인해 힌트를 얻지 못했습니다. 감각으로 투자하세요!</em>`;
-    currentShortHintHtml = "";
-    currentLongHintHtml = "";
+  } else if (currentQuizStage === 2) {
+    if (isCorrect) {
+      correctQuizCount = 2;
+      quizExplain.innerHTML = `
+        <div style="color:var(--success); font-weight:bold; font-size:1.15rem; margin-bottom:8px;">
+          🏆 2차 퀴즈까지 모두 정답! [힌트 2 (분명한 힌트)] 최종 해금 완료!
+        </div>
+        <div>${quiz.explain}</div>
+      `;
+      updateHintDisplay();
+      closeQuizBtn.style.display = 'inline-block';
+      closeQuizBtn.textContent = '확인';
+      viewHintBtn.style.display = 'inline-block';
+    } else {
+      correctQuizCount = 1;
+      let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
+      quizExplain.innerHTML = `
+        <div style="color:var(--danger); font-weight:bold; font-size:1.15rem; margin-bottom:8px;">
+          2차 퀴즈 오답입니다. (정답: ${corrAns})
+        </div>
+        <div>1차 퀴즈 정답 보상인 [힌트 1]만 제공됩니다.</div>
+        <div style="margin-top:6px;">${quiz.explain}</div>
+      `;
+      updateHintDisplay();
+      closeQuizBtn.style.display = 'inline-block';
+      closeQuizBtn.textContent = '확인';
+      viewHintBtn.style.display = 'inline-block';
+    }
   }
 }
 

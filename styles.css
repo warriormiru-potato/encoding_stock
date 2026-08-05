@@ -404,49 +404,15 @@ input:focus, select:focus {
   line-height: 1.6;
 }
 
-/* 퀴즈 성공 후 힌트 옵션 선택 카드 스타일 */
-.hint-select-wrapper {
-  display: flex;
-  gap: 12px;
-  margin: 18px 0;
-  justify-content: center;
-}
-
-.hint-opt-card {
-  flex: 1;
-  background: #ffffff;
-  border: 2px solid #cbd5e1;
-  border-radius: 12px;
-  padding: 16px 12px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  text-align: center;
-}
-
-.hint-opt-card:hover {
-  border-color: #7c3aed;
-  background: #f3e8ff;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.2);
-}
-
-.hint-opt-card.active {
-  border: 2.5px solid #7c3aed;
-  background: #f3e8ff;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
-}
-
-.hint-opt-title {
-  font-size: 1.05rem;
-  font-weight: 900;
-  color: #6d28d9;
-  margin-bottom: 6px;
-}
-
-.hint-opt-desc {
+.quiz-step-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #7c3aed;
+  color: #ffffff;
+  border-radius: 20px;
+  font-weight: 800;
   font-size: 0.85rem;
-  color: #475569;
-  font-weight: 600;
+  margin-bottom: 10px;
 }
 
 /* Result Screen */
