@@ -425,10 +425,20 @@ function showQuizModal(data) {
   quizModal.style.display = 'flex';
 }
 
+let firstQuizId = null;
+
 function renderQuizStage(stage) {
   currentQuizStage = stage;
-  const qIdx = Math.floor(Math.random() * window.QUIZ_BANK.length);
-  currentQuizObj = window.QUIZ_BANK[qIdx];
+  
+  // 1차 퀴즈 문제와 2차 퀴즈 문제가 중복되지 않도록 무작위 추출
+  let qCandidates = window.QUIZ_BANK;
+  if (stage === 2 && firstQuizId !== null) {
+    qCandidates = window.QUIZ_BANK.filter(q => q.id !== firstQuizId);
+  }
+
+  const qIdx = Math.floor(Math.random() * qCandidates.length);
+  currentQuizObj = qCandidates[qIdx];
+  if (stage === 1) firstQuizId = currentQuizObj.id;
 
   const stageBadgeText = stage === 1 ? '📝 [퀴즈 1/2] 반도체 상식 (1차 도전)' : '🔥 [퀴즈 2/2] 최종 힌트 해금 도전! (2차)';
   document.getElementById('quiz-modal-title').innerHTML = `<span class="quiz-step-badge">${stageBadgeText}</span><br>라운드 퀴즈`;
