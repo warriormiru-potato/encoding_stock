@@ -223,6 +223,9 @@ socket.on('roundStarted', (data) => {
   setupRound(data);
 });
 
+let skipVotedStatus = { votedCount: 0, totalCount: 0 };
+let hasVotedCurrentRound = false;
+
 function setupRound(data, isReconnect = false) {
   roomScreen.style.display = 'none';
   resultScreen.style.display = 'none';
@@ -230,9 +233,10 @@ function setupRound(data, isReconnect = false) {
   viewHintBtn.style.display = 'none'; // 매 라운드 시작 시 숨김
 
   // 스킵 버튼 및 카운트다운 초기화
-  skipRoundBtn.disabled = false;
+  hasVotedCurrentRound = false;
+  skipRoundBtn.disabled = true;
   skipRoundBtn.classList.remove('voted');
-  skipRoundBtn.textContent = '⏩ 라운드 스킵 (0/0)';
+  skipRoundBtn.textContent = `⏳ 60초 후 스킵 가능 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
   document.getElementById('auto-next-round-notice').style.display = 'none';
   if (skipCountdownInterval) {
     clearInterval(skipCountdownInterval);
@@ -264,6 +268,27 @@ socket.on('timerUpdate', (time) => {
     timerDisplay.classList.add('timer-urgent');
   } else {
     timerDisplay.classList.remove('timer-urgent');
+  }
+
+  // 라운드 60초 경과 체크 (기본 라운드 시간 180초 중 남은 시간이 120초 초과 시 60초 미만 경과)
+  const roundTime = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.SYSTEM) ? GAME_CONFIG.SYSTEM.ROUND_TIME : 180;
+  const elapsedTime = roundTime - time;
+
+  if (elapsedTime < 60) {
+    const remainSec = 60 - elapsedTime;
+    skipRoundBtn.disabled = true;
+    skipRoundBtn.classList.remove('voted');
+    skipRoundBtn.textContent = `⏳ ${remainSec}초 후 스킵 가능 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+  } else {
+    if (hasVotedCurrentRound) {
+      skipRoundBtn.disabled = true;
+      skipRoundBtn.classList.add('voted');
+      skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+    } else {
+      skipRoundBtn.disabled = false;
+      skipRoundBtn.classList.remove('voted');
+      skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+    }
   }
 });
 
@@ -311,9 +336,13 @@ function renderStocks(companies, players) {
         <div class="stock-desc">${c.desc}</div>
       </div>
       <div class="stock-price">${formatMoney(c.basePrice)}</div>
-      <div class="my-shares" id="share-${c.id}">보유량: ${myData.shares[c.id]}주</div>
+      <div class="my-shares-badge" id="share-${c.id}">
+        <span class="shares-label">보유 수량</span>
+        <span class="shares-count">${myData.shares[c.id]}주</span>
+      </div>
       <div class="trade-controls">
-        <input type="number" id="trade-qty-${c.id}" value="1" min="1" />
+        <span class="qty-label">주문수량</span>
+        <input type="number" id="trade-qty-${c.id}" value="1" min="1" class="qty-input" />
         <button class="btn-buy" data-id="${c.id}">매수</button>
         <button class="btn-danger btn-sell" data-id="${c.id}">매도</button>
       </div>
@@ -623,16 +652,17 @@ socket.on('gameOver', (players) => {
 
 // 스킵 버튼 클릭 이벤트
 skipRoundBtn.addEventListener('click', () => {
-  if (skipRoundBtn.classList.contains('voted')) return;
+  if (skipRoundBtn.disabled || hasVotedCurrentRound) return;
   
   socket.emit('voteSkip', { roomId: currentRoom });
+  hasVotedCurrentRound = true;
   skipRoundBtn.classList.add('voted');
   skipRoundBtn.disabled = true;
 });
 
 // 스킵 현황 업데이트 수신
 socket.on('skipStatusUpdated', ({ votedCount, totalCount }) => {
-  skipRoundBtn.textContent = `⏩ 라운드 스킵 (${votedCount}/${totalCount})`;
+  skipVotedStatus = { votedCount, totalCount };
 });
 
 // 라운드 스킵 완료 알림 및 8초 자동 카운트다운 시작
