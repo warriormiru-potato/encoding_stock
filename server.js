@@ -190,9 +190,10 @@ async function startServer() {
         room.round = 1;
         room.skipVotes = [];
         
-        // 라운드 시작 시점 가격 기록
+        // 라운드 시작 시점 가격 기록 및 주가 히스토리 초기화
         room.companies.forEach(c => {
           c.startPrice = c.basePrice;
+          c.priceHistory = [c.basePrice];
         });
         
         io.to(roomId).emit('gameStarted', {
@@ -411,6 +412,10 @@ async function startServer() {
         const pct = changes[c.id] || 0;
         const startP = c.startPrice !== undefined ? c.startPrice : c.basePrice;
         c.basePrice = Math.floor(startP * (1 + pct / 100));
+        if (!c.priceHistory) {
+          c.priceHistory = [c.startPrice !== undefined ? c.startPrice : c.basePrice];
+        }
+        c.priceHistory.push(c.basePrice);
       });
 
       calculateAssets(room);

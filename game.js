@@ -425,6 +425,132 @@ closeQuizBtn.addEventListener('click', () => {
   quizModal.style.display = 'none';
 });
 
+// Chart.js 꺾은선 그래프 렌더링
+let stockChart = null;
+
+const CHART_COLORS = [
+  { border: '#2563eb', bg: 'rgba(37, 99, 235, 0.15)' },  // 파랑 (삼성전자 등)
+  { border: '#dc2626', bg: 'rgba(220, 38, 38, 0.15)' },  // 빨강 (SK하이닉스 등)
+  { border: '#16a34a', bg: 'rgba(22, 163, 74, 0.15)' },  // 초록 (TSMC 등)
+  { border: '#d97706', bg: 'rgba(217, 119, 6, 0.15)' },  // 주황 (엔비디아 등)
+  { border: '#7c3aed', bg: 'rgba(124, 58, 237, 0.15)' }, // 보라 (ASML 등)
+  { border: '#0891b2', bg: 'rgba(8, 145, 178, 0.15)' }   // 청록 (Intel 등)
+];
+
+function renderStockChart(companies) {
+  const ctx = document.getElementById('stock-chart-canvas');
+  if (!ctx) return;
+
+  if (stockChart) {
+    stockChart.destroy();
+  }
+
+  let maxLen = 0;
+  companies.forEach(c => {
+    if (c.priceHistory && c.priceHistory.length > maxLen) {
+      maxLen = c.priceHistory.length;
+    }
+  });
+
+  const labels = [];
+  for (let i = 0; i < maxLen; i++) {
+    labels.push(i === 0 ? '시작 (0R)' : `${i}라운드`);
+  }
+
+  const datasets = companies.map((c, idx) => {
+    const color = CHART_COLORS[idx % CHART_COLORS.length];
+    const history = c.priceHistory && c.priceHistory.length > 0 ? c.priceHistory : [c.basePrice];
+    
+    return {
+      label: c.name,
+      data: history,
+      borderColor: color.border,
+      backgroundColor: color.bg,
+      borderWidth: 3,
+      pointRadius: 5,
+      pointHoverRadius: 8,
+      pointBackgroundColor: color.border,
+      tension: 0.25,
+      fill: false
+    };
+  });
+
+  stockChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            font: {
+              family: 'Pretendard',
+              size: 13,
+              weight: 'bold'
+            },
+            color: '#0f172a',
+            padding: 15,
+            usePointStyle: true
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.y !== null) {
+                label += context.parsed.y.toLocaleString('ko-KR') + '원';
+              }
+              return label;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(0, 0, 0, 0.06)'
+          },
+          ticks: {
+            color: '#0f172a',
+            font: {
+              family: 'Pretendard',
+              size: 12,
+              weight: 'bold'
+            }
+          }
+        },
+        y: {
+          grid: {
+            color: 'rgba(0, 0, 0, 0.08)'
+          },
+          ticks: {
+            color: '#334155',
+            font: {
+              family: 'Pretendard',
+              size: 11
+            },
+            callback: function(value) {
+              return (value / 10000).toLocaleString('ko-KR') + '만원';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
 // 라운드 종료
 socket.on('roundEnded', (data) => {
   gameScreen.style.display = 'none';
@@ -441,6 +567,11 @@ socket.on('roundEnded', (data) => {
     changeHtml += `<div><strong>${c.name}:</strong> <span class="${colorClass}">${formatMoney(oldPrice)} ➔ ${formatMoney(c.basePrice)} (${sign}${pct}%)</span></div>`;
   });
   document.getElementById('result-stock-changes').innerHTML = changeHtml;
+
+  // 라운드 종료 시 주식 6개 가격 꺾은선 그래프 렌더링
+  if (data.companies) {
+    renderStockChart(data.companies);
+  }
 
   const sortedPlayers = [...data.players].sort((a, b) => b.totalAsset - a.totalAsset);
   const rankingList = document.getElementById('final-ranking-list');

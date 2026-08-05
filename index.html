@@ -7,6 +7,7 @@
   <title>자운고 주식의신</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -124,9 +125,17 @@
     </section>
 
     <!-- 4. 라운드 종료 / 최종 결과 화면 -->
-    <section id="result-screen" class="glass" style="max-width:800px; margin: 50px auto; padding:40px; display:none;">
+    <section id="result-screen" class="glass" style="max-width:850px; margin: 40px auto; padding:40px; display:none;">
       <h2 id="result-title">라운드 결과</h2>
       <div id="result-stock-changes" style="margin: 20px 0; text-align:left; font-size:1.1rem; line-height:1.6;"></div>
+
+      <!-- 라운드별 주가 변동 꺾은선 그래프 -->
+      <div id="chart-section" class="glass" style="margin: 25px 0; padding: 20px; text-align: center; background: #ffffff;">
+        <h3 style="margin-bottom: 15px; color: #0f172a;">📈 주식 6종목 라운드별 가격 추이</h3>
+        <div style="position: relative; height: 340px; width: 100%;">
+          <canvas id="stock-chart-canvas"></canvas>
+        </div>
+      </div>
 
       <ul class="ranking-list" id="final-ranking-list">
         <!-- JS 동적 생성 -->
