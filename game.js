@@ -137,6 +137,13 @@ socket.on('errorMsg', (msg) => {
 socket.on('rejoinFailed', (msg) => {
   console.log('Rejoin failed:', msg);
   localStorage.removeItem('roomId');
+  alert('📢 업데이트됨! (서버 재설정으로 인해 페이지를 새로고침합니다.)');
+  window.location.reload();
+});
+
+socket.on('disconnect', (reason) => {
+  connectionStatus.textContent = '서버와 연결이 끊어졌습니다. 재연결 중...';
+  connectionStatus.style.color = 'var(--danger)';
 });
 
 // 재접속 완료
