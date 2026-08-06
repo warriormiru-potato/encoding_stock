@@ -160,6 +160,8 @@ socket.on('rejoinedRoom', ({ roomId, player, room }) => {
   } else if (room.status === 'result') {
     alert('게임 결과 대기 화면으로 복구되었습니다.');
     // 간소화: 다음 라운드 대기 상태로 바로 이동
+    loginScreen.style.display = 'none';
+    roomScreen.style.display = 'none';
     gameScreen.style.display = 'none';
     resultScreen.style.display = 'block';
     if (isHost) {
@@ -227,6 +229,7 @@ let skipVotedStatus = { votedCount: 0, totalCount: 0 };
 let hasVotedCurrentRound = false;
 
 function setupRound(data, isReconnect = false) {
+  loginScreen.style.display = 'none';
   roomScreen.style.display = 'none';
   resultScreen.style.display = 'none';
   gameScreen.style.display = 'block';
@@ -274,20 +277,33 @@ socket.on('timerUpdate', (time) => {
   const roundTime = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.SYSTEM) ? GAME_CONFIG.SYSTEM.ROUND_TIME : 180;
   const elapsedTime = roundTime - time;
 
-  if (elapsedTime < 60) {
-    const remainSec = 60 - elapsedTime;
-    skipRoundBtn.disabled = true;
-    skipRoundBtn.classList.remove('voted');
-    skipRoundBtn.textContent = `⏳ ${remainSec}초 후 스킵 가능 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
-  } else {
+  if (isHost) {
+    // 호스트(방장)는 시간제한이나 타인 투표 여부에 상관없이 즉시 스킵 가능
     if (hasVotedCurrentRound) {
       skipRoundBtn.disabled = true;
       skipRoundBtn.classList.add('voted');
-      skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+      skipRoundBtn.textContent = `⏩ 즉시 스킵 진행 중...`;
     } else {
       skipRoundBtn.disabled = false;
       skipRoundBtn.classList.remove('voted');
-      skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+      skipRoundBtn.textContent = `⏩ 라운드 즉시 스킵 (방장)`;
+    }
+  } else {
+    if (elapsedTime < 60) {
+      const remainSec = 60 - elapsedTime;
+      skipRoundBtn.disabled = true;
+      skipRoundBtn.classList.remove('voted');
+      skipRoundBtn.textContent = `⏳ ${remainSec}초 후 스킵 가능 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+    } else {
+      if (hasVotedCurrentRound) {
+        skipRoundBtn.disabled = true;
+        skipRoundBtn.classList.add('voted');
+        skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+      } else {
+        skipRoundBtn.disabled = false;
+        skipRoundBtn.classList.remove('voted');
+        skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+      }
     }
   }
 });
@@ -381,21 +397,88 @@ const quizHint2Box = document.getElementById('quiz-hint2-box');
 function updateHintDisplay() {
   if (!quizHint1Box || !quizHint2Box) return;
 
+  // 기본 공통 스타일 적용 (텍스트 정렬, 패딩 등)
+  [quizHint1Box, quizHint2Box].forEach(box => {
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.justifyContent = 'center';
+    box.style.padding = '18px';
+    box.style.borderRadius = '12px';
+    box.style.border = '2px solid';
+    box.style.textAlign = 'left';
+    box.style.lineHeight = '1.5';
+    box.style.transition = 'all 0.3s ease';
+  });
+
   if (correctQuizCount === 0) {
-    quizHint1Box.style.display = 'block';
-    quizHint1Box.innerHTML = `<em>🔒 퀴즈 오답으로 인해 힌트 1을 얻지 못했습니다.</em>`;
-    quizHint2Box.style.display = 'block';
-    quizHint2Box.innerHTML = `<em>🔒 퀴즈 오답으로 인해 힌트 2를 얻지 못했습니다.</em>`;
+    // 0개 정답 (둘 다 잠김)
+    quizHint1Box.style.background = '#f8fafc';
+    quizHint1Box.style.borderColor = '#e2e8f0';
+    quizHint1Box.style.color = '#94a3b8';
+    quizHint1Box.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; width:100%;">
+        <span style="font-size:1.8rem; filter: grayscale(1);">🔒</span>
+        <strong style="font-size:1.05rem; color:#64748b;">독점 힌트 1 잠김</strong>
+        <span style="font-size:0.85rem; color:#94a3b8;">오답으로 힌트를 얻지 못했습니다.</span>
+      </div>
+    `;
+
+    quizHint2Box.style.background = '#f8fafc';
+    quizHint2Box.style.borderColor = '#e2e8f0';
+    quizHint2Box.style.color = '#94a3b8';
+    quizHint2Box.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; width:100%;">
+        <span style="font-size:1.8rem; filter: grayscale(1);">🔒</span>
+        <strong style="font-size:1.05rem; color:#64748b;">독점 힌트 2 잠김</strong>
+        <span style="font-size:0.85rem; color:#94a3b8;">오답으로 힌트를 얻지 못했습니다.</span>
+      </div>
+    `;
   } else if (correctQuizCount === 1) {
-    quizHint1Box.style.display = 'block';
-    quizHint1Box.innerHTML = `<strong>💡 [획득] 힌트 1 (애매한 힌트):</strong><br>${currentHint1Text || "힌트 1 데이터가 없습니다."}`;
-    quizHint2Box.style.display = 'block';
-    quizHint2Box.innerHTML = `<strong>🔒 힌트 2 (분명한 힌트):</strong><br><em>퀴즈 2개를 모두 정답 맞추어야 추가 해금됩니다!</em>`;
+    // 1개 정답 (힌트 1 해금, 힌트 2 잠김)
+    quizHint1Box.style.background = '#eff6ff';
+    quizHint1Box.style.borderColor = '#3b82f6';
+    quizHint1Box.style.color = '#1e3a8a';
+    quizHint1Box.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span style="font-size:0.8rem; background:#3b82f6; color:#ffffff; padding:2px 8px; border-radius:20px; width:fit-content; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">💡 힌트 1 해금</span>
+        <strong style="font-size:1.05rem; color:#1d4ed8; margin-top:2px;">애매한 독점 정보</strong>
+        <p style="font-size:0.9rem; font-weight:600; line-height:1.6; color:#1e40af; margin-top:4px;">${currentHint1Text || "정보가 없습니다."}</p>
+      </div>
+    `;
+
+    quizHint2Box.style.background = '#fffbeb';
+    quizHint2Box.style.borderColor = '#fcd34d';
+    quizHint2Box.style.color = '#78350f';
+    quizHint2Box.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; width:100%;">
+        <span style="font-size:1.8rem;">🔒</span>
+        <strong style="font-size:1.05rem; color:#b45309;">독점 힌트 2 잠김</strong>
+        <span style="font-size:0.85rem; color:#d97706; font-weight:600;">2차 퀴즈까지 맞춰야<br>고급 정보가 열립니다!</span>
+      </div>
+    `;
   } else if (correctQuizCount >= 2) {
-    quizHint1Box.style.display = 'block';
-    quizHint1Box.innerHTML = `<strong>💡 [획득] 힌트 1 (애매한 힌트):</strong><br>${currentHint1Text || "힌트 1 데이터가 없습니다."}`;
-    quizHint2Box.style.display = 'block';
-    quizHint2Box.innerHTML = `<strong>🔥 [최종 해금!] 힌트 2 (분명한 힌트):</strong><br>${currentHint2Text || "힌트 2 데이터가 없습니다."}`;
+    // 2개 정답 (둘 다 해금)
+    quizHint1Box.style.background = '#eff6ff';
+    quizHint1Box.style.borderColor = '#3b82f6';
+    quizHint1Box.style.color = '#1e3a8a';
+    quizHint1Box.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span style="font-size:0.8rem; background:#3b82f6; color:#ffffff; padding:2px 8px; border-radius:20px; width:fit-content; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">💡 힌트 1 해금</span>
+        <strong style="font-size:1.05rem; color:#1d4ed8; margin-top:2px;">애매한 독점 정보</strong>
+        <p style="font-size:0.9rem; font-weight:600; line-height:1.6; color:#1e40af; margin-top:4px;">${currentHint1Text || "정보가 없습니다."}</p>
+      </div>
+    `;
+
+    quizHint2Box.style.background = '#ecfdf5';
+    quizHint2Box.style.borderColor = '#10b981';
+    quizHint2Box.style.color = '#064e3b';
+    quizHint2Box.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span style="font-size:0.8rem; background:#10b981; color:#ffffff; padding:2px 8px; border-radius:20px; width:fit-content; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">🔥 힌트 2 해금</span>
+        <strong style="font-size:1.05rem; color:#047857; margin-top:2px;">분명한 독점 정보</strong>
+        <p style="font-size:0.9rem; font-weight:600; line-height:1.6; color:#065f46; margin-top:4px;">${currentHint2Text || "정보가 없습니다."}</p>
+      </div>
+    `;
   }
 }
 

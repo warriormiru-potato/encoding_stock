@@ -168,7 +168,7 @@
 
   <!-- 퀴즈 모달 (라운드 시작 시 강제 팝업 및 힌트 보기 시 팝업) -->
   <div class="modal-overlay" id="quiz-modal">
-    <div class="modal-content glass">
+    <div class="modal-content glass" style="max-width: 760px; width: 95%; padding: 25px;">
       <h3 id="quiz-modal-title" style="color:var(--accent);">라운드 시작! 반도체 상식 퀴즈</h3>
       <p id="quiz-modal-desc" style="margin-bottom:15px; color:var(--text-muted);">퀴즈를 맞추면 이번 라운드의 경제 힌트를 얻을 수 있습니다!</p>
 
@@ -180,11 +180,13 @@
       </div>
 
       <div class="quiz-result" id="quiz-result" style="display:none;">
-        <p id="quiz-explain" style="margin-bottom:15px;"></p>
+        <p id="quiz-explain" style="margin-bottom:20px; font-size: 1rem; line-height: 1.6; color: var(--text-main); text-align: left; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1.5px solid #e2e8f0;"></p>
 
-        <!-- 힌트 1 (애매한 힌트) & 힌트 2 (분명한 힌트) 출력 영역 -->
-        <div id="quiz-hint1-box" class="hint-box" style="margin-bottom:12px;"></div>
-        <div id="quiz-hint2-box" class="hint-box" style="background:#fef3c7; border-color:#d97706; color:#78350f;"></div>
+        <!-- 힌트 1 (애매한 힌트) & 힌트 2 (분명한 힌트) 가로 배치 출력 영역 -->
+        <div class="quiz-hints-container" style="display: flex; gap: 15px; margin-bottom: 20px; width: 100%; align-items: stretch;">
+          <div id="quiz-hint1-box" class="hint-box" style="flex: 1; margin-top: 0; min-height: 140px;"></div>
+          <div id="quiz-hint2-box" class="hint-box" style="flex: 1; margin-top: 0; min-height: 140px;"></div>
+        </div>
 
         <button id="close-quiz-btn" style="margin-top:15px; width:100%;">확인</button>
       </div>

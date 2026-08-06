@@ -304,15 +304,35 @@ async function startServer() {
       const room = rooms[roomId];
       if (!room || room.status !== 'playing') return;
 
-      // 라운드 시작 후 60초 미만에는 스킵 불가
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player) return;
+
+      const isHost = (room.host === player.id);
+
+      // 라운드 시작 후 60초 미만에는 스킵 불가 (방장은 상관 없음)
       const elapsedTime = GAME_CONFIG.SYSTEM.ROUND_TIME - room.timer;
-      if (elapsedTime < 60) {
+      if (!isHost && elapsedTime < 60) {
         socket.emit('errorMsg', '라운드 시작 후 60초가 지나야 스킵할 수 있습니다.');
         return;
       }
 
-      const player = room.players.find(p => p.socketId === socket.id);
-      if (!player) return;
+      if (isHost) {
+        // 호스트(방장)가 누른 경우 즉시 강제 스킵 진행
+        if (room.timerInterval) {
+          clearInterval(room.timerInterval);
+          room.timerInterval = null;
+        }
+
+        endRound(roomId);
+
+        io.to(roomId).emit('roundSkipped', { nextRoundIn: 8 });
+
+        if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
+        room.autoSkipTimeout = setTimeout(() => {
+          proceedToNextRound(roomId);
+        }, 8000);
+        return;
+      }
 
       if (!room.skipVotes) {
         room.skipVotes = [];
