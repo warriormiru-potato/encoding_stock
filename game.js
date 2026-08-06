@@ -617,7 +617,7 @@ const CHART_COLORS = [
   { border: '#0891b2', bg: 'rgba(8, 145, 178, 0.15)' }   // 청록 (Intel 등)
 ];
 
-function renderStockChart(companies) {
+function renderStockChart(companies, changes) {
   const ctx = document.getElementById('stock-chart-canvas');
   if (!ctx) return;
 
@@ -625,74 +625,40 @@ function renderStockChart(companies) {
     stockChart.destroy();
   }
 
-  let maxLen = 0;
-  companies.forEach(c => {
-    if (c.priceHistory && c.priceHistory.length > maxLen) {
-      maxLen = c.priceHistory.length;
-    }
-  });
+  const defaultChanges = changes || {};
 
-  const labels = [];
-  for (let i = 0; i < maxLen; i++) {
-    labels.push(i === 0 ? '시작 (0R)' : `${i}라운드`);
-  }
-
-  const datasets = companies.map((c, idx) => {
-    const color = CHART_COLORS[idx % CHART_COLORS.length];
-    const history = c.priceHistory && c.priceHistory.length > 0 ? c.priceHistory : [c.basePrice];
-    
-    return {
-      label: c.name,
-      data: history,
-      borderColor: color.border,
-      backgroundColor: color.bg,
-      borderWidth: 3,
-      pointRadius: 5,
-      pointHoverRadius: 8,
-      pointBackgroundColor: color.border,
-      tension: 0.25,
-      fill: false
-    };
-  });
+  const datasets = [{
+    label: '주가 변동률 (%)',
+    data: companies.map(c => defaultChanges[c.id] || 0),
+    backgroundColor: companies.map((c, idx) => {
+      const val = defaultChanges[c.id] || 0;
+      return CHART_COLORS[idx % CHART_COLORS.length].border;
+    }),
+    borderColor: companies.map((c, idx) => CHART_COLORS[idx % CHART_COLORS.length].border),
+    borderWidth: 1,
+    borderRadius: 8,
+    borderSkipped: false
+  }];
 
   stockChart = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
-      labels: labels,
+      labels: companies.map(c => c.name),
       datasets: datasets
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
       plugins: {
         legend: {
-          position: 'top',
-          labels: {
-            font: {
-              family: 'Pretendard',
-              size: 13,
-              weight: 'bold'
-            },
-            color: '#0f172a',
-            padding: 15,
-            usePointStyle: true
-          }
+          display: false
         },
         tooltip: {
           callbacks: {
             label: function(context) {
-              let label = context.dataset.label || '';
-              if (label) {
-                label += ': ';
-              }
-              if (context.parsed.y !== null) {
-                label += context.parsed.y.toLocaleString('ko-KR') + '원';
-              }
-              return label;
+              const val = context.parsed.y;
+              const sign = val > 0 ? '+' : '';
+              return `변동률: ${sign}${val}%`;
             }
           }
         }
@@ -700,7 +666,7 @@ function renderStockChart(companies) {
       scales: {
         x: {
           grid: {
-            color: 'rgba(0, 0, 0, 0.06)'
+            display: false
           },
           ticks: {
             color: '#0f172a',
@@ -722,7 +688,8 @@ function renderStockChart(companies) {
               size: 11
             },
             callback: function(value) {
-              return (value / 10000).toLocaleString('ko-KR') + '만원';
+              const sign = value > 0 ? '+' : '';
+              return `${sign}${value}%`;
             }
           }
         }
@@ -791,7 +758,7 @@ socket.on('roundEnded', (data) => {
 
   // 라운드 종료 시 주식 6개 가격 꺾은선 그래프 및 양 옆 인물 GIF 렌더링
   if (data.companies) {
-    renderStockChart(data.companies);
+    renderStockChart(data.companies, data.changes);
     renderCharacterGifs(data.companies, data.changes);
   }
 
