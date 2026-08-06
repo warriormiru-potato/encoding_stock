@@ -942,31 +942,43 @@ socket.on('roundSkipped', ({ nextRoundIn }) => {
 });
 
 
-// News Banner
-const newsBanner = document.getElementById('news-banner');
-const newsText = document.getElementById('news-text');
-const newsImpact = document.getElementById('news-impact');
+// News Banner Container
+const newsBannerContainer = document.getElementById('news-banner-container');
 
 socket.on('breakingNews', (data) => {
   // 주가 및 내 자산 갱신
   renderStocks(data.companies, data.players);
   renderPlayers(data.players);
 
-  // 특보 배너 노출
-  newsText.textContent = data.news.text;
-  newsImpact.textContent = "주가 " + (data.impact > 0 ? "+" : "") + data.impact + "%";
+  // 개별 특보 배너 동적 생성
+  const banner = document.createElement('div');
+  banner.className = 'news-banner ' + (data.news.type === 'good' ? 'good-news' : 'bad-news');
+  
+  // 인라인 스타일로 개별 배너 배치 최적화 (가로폭 100%, 상대 위치 등)
+  banner.style.position = 'relative';
+  banner.style.top = 'auto';
+  banner.style.left = 'auto';
+  banner.style.transform = 'none';
+  banner.style.width = '100%';
+  banner.style.pointerEvents = 'auto';
 
-  newsBanner.className = 'news-banner'; // 클래스 초기화
-  if (data.news.type === 'good') {
-    newsBanner.classList.add('good-news');
-  } else {
-    newsBanner.classList.add('bad-news');
-  }
+  banner.innerHTML = `
+    <div class="news-content">
+      <span class="news-icon">🚨</span>
+      <span class="news-text">${data.news.text}</span>
+      <span class="news-impact">주가 ${data.impact > 0 ? "+" : ""}${data.impact}%</span>
+    </div>
+  `;
 
-  newsBanner.style.display = 'flex';
+  newsBannerContainer.appendChild(banner);
 
-  // 7초 후 숨김
+  // 7초 후 제거
   setTimeout(() => {
-    newsBanner.style.display = 'none';
+    banner.style.opacity = '0';
+    banner.style.transform = 'scale(0.95)';
+    banner.style.transition = 'all 0.4s ease';
+    setTimeout(() => {
+      banner.remove();
+    }, 400);
   }, 7000);
 });

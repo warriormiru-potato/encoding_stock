@@ -13,14 +13,8 @@
 <body>
 
   <div class="container">
-    <!-- 긴급특보 배너 -->
-    <div id="news-banner" class="news-banner" style="display:none;">
-      <div class="news-content">
-        <span class="news-icon">🚨</span>
-        <span id="news-text" class="news-text"></span>
-        <span id="news-impact" class="news-impact"></span>
-      </div>
-    </div>
+    <!-- 긴급특보 배너 컨테이너 (적층형) -->
+    <div id="news-banner-container" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 800px; z-index: 999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
 
     <header>
       <h1>자운고 주식의신</h1>

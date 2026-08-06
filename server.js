@@ -267,6 +267,9 @@ async function startServer() {
         room.autoSkipTimeout = null;
       }
 
+      // 결과 화면 상태(result)에서만 진행 가능하도록 강제하여 중복 진입 차단
+      if (room.status !== 'result') return;
+
       if (room.round >= 3) {
         room.status = 'end';
         io.to(roomId).emit('gameOver', room.players);
@@ -371,32 +374,47 @@ async function startServer() {
       const room = rooms[roomId];
       room.timer = GAME_CONFIG.SYSTEM.ROUND_TIME;
       
-      // 긴급특보 스케줄링 (유저 요청: 2라운드에서만 3 ~ 4회 변수로 작용)
+      // 긴급특보 스케줄링 (모든 라운드 적용)
       room.breakingNewsSchedule = [];
       
-      if (room.round === 2) {
-        // 노이즈/페이크 방식이므로 원래 시나리오 방향 필터링을 제거하고 전체 풀에서 무작위 선택
-        const availableNews = [...BREAKING_NEWS];
-        
-        // 긴급특보 스케줄링 (유저 요청: 라운드당 3 ~ 4회)
-        const maxNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, availableNews.length);
-        room.breakingNewsSchedule = [];
-        for(let i=0; i<maxNewsCount; i++) {
-          if (availableNews.length === 0) break;
-          const idx = Math.floor(Math.random() * availableNews.length);
-          const newsItem = availableNews.splice(idx, 1)[0];
-          
-          // 초반 15초 동안은 뉴스가 터지지 않도록 유예 (유저 요청)
-          const gracePeriod = 15;
-          const maxTrigger = Math.max(3, room.timer - gracePeriod);
-          
-          let triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3; // 3 ~ maxTrigger
-          // 같은 시간에 뉴스가 겹치지 않도록 방지
-          while (room.breakingNewsSchedule.some(s => s.time === triggerTime)) {
-            triggerTime = Math.floor(Math.random() * (maxTrigger - 2)) + 3;
+      const availableNews = [...BREAKING_NEWS];
+      // 무작위 셔플
+      for (let i = availableNews.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [availableNews[i], availableNews[j]] = [availableNews[j], availableNews[i]];
+      }
+
+      // 회사가 중복되지 않도록 라운드당 뉴스 후보 선정
+      const selectedNewsItems = [];
+      const selectedCompanyIds = new Set();
+
+      for (const news of availableNews) {
+        if (!selectedCompanyIds.has(news.companyId)) {
+          selectedNewsItems.push(news);
+          selectedCompanyIds.add(news.companyId);
+        }
+        if (selectedNewsItems.length >= 4) break; // 최대 4종목
+      }
+
+      if (selectedNewsItems.length > 0) {
+        // 라운드당 뉴스 개수 설정 (3개 또는 4개)
+        const targetNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, selectedNewsItems.length);
+        const finalNewsSelection = selectedNewsItems.slice(0, targetNewsCount);
+
+        // 첫 번째 뉴스는 무조건 라운드 시작 30초 이내 (남은 시간 150 ~ 175초 사이)에 발생
+        const firstTriggerTime = Math.floor(Math.random() * (175 - 150 + 1)) + 150;
+        const usedTimes = new Set([firstTriggerTime]);
+
+        room.breakingNewsSchedule.push({ time: firstTriggerTime, news: finalNewsSelection[0] });
+
+        // 나머지 뉴스들은 30초 이후 (남은 시간 10 ~ 149초 사이)에 겹치지 않게 배정
+        for (let i = 1; i < finalNewsSelection.length; i++) {
+          let triggerTime = Math.floor(Math.random() * (149 - 10 + 1)) + 10;
+          while (usedTimes.has(triggerTime)) {
+            triggerTime = Math.floor(Math.random() * (149 - 10 + 1)) + 10;
           }
-          
-          room.breakingNewsSchedule.push({ time: triggerTime, news: newsItem });
+          usedTimes.add(triggerTime);
+          room.breakingNewsSchedule.push({ time: triggerTime, news: finalNewsSelection[i] });
         }
       }
       
