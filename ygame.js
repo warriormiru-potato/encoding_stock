@@ -490,6 +490,30 @@ function showFinalScreen() {
                       : grade === 'C' ? '#ff8c00' : '#ff4444';
   document.getElementById('finalComment').textContent = comment;
 
+  // 부모 창(주식 게임)이 존재할 경우 결과 전달 및 돌아가기 버튼 노출
+  if (window.parent && window.parent !== window) {
+    const exitBtn = document.getElementById('exitMinigameBtn');
+    if (exitBtn) {
+      exitBtn.style.display = 'block';
+      exitBtn.onclick = () => {
+        window.parent.postMessage({
+          type: 'MINIGAME_EXIT',
+          score: state.score,
+          accuracy: accuracy,
+          grade: grade
+        }, '*');
+      };
+    }
+    
+    // 게임 완료 즉시 부모 창에 결과를 미리 공유 (자동 연동용)
+    window.parent.postMessage({
+      type: 'MINIGAME_COMPLETE',
+      score: state.score,
+      accuracy: accuracy,
+      grade: grade
+    }, '*');
+  }
+
   showScreen('final');
 }
 

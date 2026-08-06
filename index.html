@@ -191,6 +191,18 @@
     </div>
   </div>
 
+  <!-- 미니게임 모달 (2라운드 시 퀴즈 대신 실행) -->
+  <div class="modal-overlay" id="minigame-modal">
+    <div class="modal-content glass" style="max-width: 900px; width: 95%; height: 85vh; padding: 15px; display: flex; flex-direction: column; background: #0b0f19; border-color: #2563eb;">
+      <h3 style="color:#39ff14; margin-bottom: 10px;">🔍 2라운드 미션: 반도체 불량품 검사 시뮬레이터</h3>
+      <p style="color:var(--text-muted); font-size: 0.95rem; margin-bottom: 15px;">
+        12개 칩 중 숨은 불량 칩을 정확하고 빠르게 클릭해 찾으세요!<br>
+        <strong>[획득 조건]</strong> 점수 800점 이상: 힌트 1 해금 | 점수 2000점 이상: 힌트 2까지 전체 해금!
+      </p>
+      <iframe id="minigame-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 12px; background: #0b0f19;"></iframe>
+    </div>
+  </div>
+
   <script src="data.js"></script>
   <script src="game.js"></script>
 </body>

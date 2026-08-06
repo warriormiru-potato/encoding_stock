@@ -413,6 +413,56 @@ viewHintBtn.addEventListener('click', () => {
   quizModal.style.display = 'flex';
 });
 
+const minigameModal = document.getElementById('minigame-modal');
+const minigameIframe = document.getElementById('minigame-iframe');
+
+function showMiniGameModal(data) {
+  if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
+  currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
+  currentHint2Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint2 || currentRoundDataForQuiz.hint || "") : "";
+
+  correctQuizCount = 0;
+  minigameIframe.src = 'yindex.html';
+  minigameModal.style.display = 'flex';
+}
+
+// 미니게임 iframe 메시지 리스너
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'MINIGAME_COMPLETE') {
+    const score = e.data.score;
+    // 800점 이상 힌트 1, 2000점 이상 힌트 2 해금
+    if (score >= 2000) {
+      correctQuizCount = 2;
+    } else if (score >= 800) {
+      correctQuizCount = 1;
+    } else {
+      correctQuizCount = 0;
+    }
+
+    if (correctQuizCount >= 1) {
+      socket.emit('quizSolved', { roomId: currentRoom });
+    }
+  } else if (e.data && e.data.type === 'MINIGAME_EXIT') {
+    minigameModal.style.display = 'none';
+    minigameIframe.src = ''; // 리소스 해제
+
+    if (correctQuizCount >= 1) {
+      viewHintBtn.style.display = 'inline-block';
+    }
+
+    const earnedHintsCount = correctQuizCount;
+    let resultMsg = `반도체 불량 검사 결과: ${e.data.score.toLocaleString()}점 (등급 ${e.data.grade})을 획득하였습니다!\n`;
+    if (earnedHintsCount === 2) {
+      resultMsg += `🎉 최고 점수로 독점 힌트 1 & 2가 모두 해금되었습니다!`;
+    } else if (earnedHintsCount === 1) {
+      resultMsg += `💡 힌트 1(애매한 힌트)이 해금되었습니다!\n(힌트 2를 얻으려면 2,000점 이상 필요)`;
+    } else {
+      resultMsg += `❌ 점수 미달(800점 미만)로 힌트를 획득하지 못했습니다.`;
+    }
+    alert(resultMsg);
+  }
+});
+
 function showQuizModal(data) {
   if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
   currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
@@ -421,8 +471,12 @@ function showQuizModal(data) {
   currentQuizStage = 1;
   correctQuizCount = 0;
 
-  renderQuizStage(1);
-  quizModal.style.display = 'flex';
+  if (data.round === 2) {
+    showMiniGameModal(data);
+  } else {
+    renderQuizStage(1);
+    quizModal.style.display = 'flex';
+  }
 }
 
 let firstQuizId = null;
