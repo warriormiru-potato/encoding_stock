@@ -27,6 +27,15 @@ function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
+// 클라이언트에 안전하게 보낼 방 정보 복사본 생성 (타이머 관련 객체 제거)
+function getSafeRoomData(room) {
+  if (!room) return null;
+  const safeRoom = { ...room };
+  delete safeRoom.timerInterval;
+  delete safeRoom.autoSkipTimeout;
+  return safeRoom;
+}
+
 async function startServer() {
   const gameData = await loadGameData();
   const COMPANIES = gameData.COMPANIES;
@@ -103,7 +112,7 @@ async function startServer() {
       room.players.push(player);
 
       socket.join(roomId);
-      socket.emit('joinedRoom', { roomId, player, room });
+      socket.emit('joinedRoom', { roomId, player, room: getSafeRoomData(room) });
       io.to(roomId).emit('updateLobby', room.players);
       io.emit('roomListUpdate', getActiveRooms());
     });
@@ -116,7 +125,7 @@ async function startServer() {
         if (player) {
           player.socketId = socket.id; // 새 소켓 아이디 갱신
           socket.join(roomId);
-          socket.emit('rejoinedRoom', { roomId, player, room });
+          socket.emit('rejoinedRoom', { roomId, player, room: getSafeRoomData(room) });
           if (room.status === 'lobby') {
             io.to(roomId).emit('updateLobby', room.players);
           } else {
