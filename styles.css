@@ -1,33 +1,53 @@
-/* styles.css - 반도체 모의투자 게임 멀티플레이어 스타일시트 */
-/* [라이트 테마 & 고대비 텍스트 & 명확한 테두리 스타일] */
+/* styles.css - 반도체 모의투자 게임 멀티플레이어 프리미엄 다크 사이버 스타일시트 */
 :root {
-  --bg-dark: #f8fafc;       /* 전체 배경 색상 (화사하고 안정적인 연한 슬레이트 백그라운드) */
-  --bg-card: rgba(255, 255, 255, 0.94); /* 글래스모피즘 라이트 카드 배경색 */
-  --primary: #2563eb;       /* 주요 버튼 및 강조 색상 (비비드 블루) */
-  --primary-hover: #1d4ed8; /* 주요 버튼 호버 시 색상 */
-  --accent: #7c3aed;        /* 보조 포인트 색상 (딥 바이올렛) */
-  --success: #16a34a;       /* 상승/성공/정답 표시 색상 (선명한 그린) */
-  --danger: #dc2626;        /* 하락/위험/오답/강퇴 표시 색상 (선명한 레드) */
-  --text-main: #0f172a;     /* 일반 텍스트 색상 (선명한 딥 차콜/다크 슬레이트) */
-  --text-muted: #475569;    /* 설명글 텍스트 색상 (또렷한 어두운 회색) */
-  --border-color: #94a3b8;  /* 카드 및 UI 테두리 선 색상 (또렷한 슬레이트 보더) */
-  --glass-blur: blur(12px);  /* 글래스모피즘 블러 강도 */
+  --bg-dark: #070a13;          /* 전체 배경색 */
+  --bg-card: rgba(13, 18, 36, 0.75); /* 글래스모피즘 어두운 카드 배경색 */
+  --primary: #2563eb;          /* 비비드 네온 블루 */
+  --primary-hover: #3b82f6;    /* 네온 블루 호버 */
+  --accent: #8b5cf6;           /* 퍼플 포인트 */
+  --success: #10b981;          /* 상승/성공 (네온 에메랄드) */
+  --danger: #ef4444;           /* 하락/위험 (네온 레드) */
+  --text-main: #f8fafc;        /* 주 텍스트 (밝은 그레이/화이트) */
+  --text-muted: #94a3b8;       /* 설명 텍스트 (어두운 그레이) */
+  --border-color: rgba(255, 255, 255, 0.08); /* 반투명 미세 보더 */
+  --glass-blur: blur(16px);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, #090e1a 0%, #05070d 100%);
   color: var(--text-main);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* 은은한 네온 배경 오버레이 */
+body::before {
+  content: '';
+  position: absolute;
+  top: -10%; left: -10%;
+  width: 50%; height: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: absolute;
+  bottom: -10%; right: -10%;
+  width: 50%; height: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Glassmorphism Utilities (High Contrast Borders) */
@@ -35,9 +55,9 @@ body {
   background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border: 2px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .container {
@@ -49,18 +69,19 @@ body {
 
 header {
   text-align: center;
-  margin-bottom: 35px;
-  padding: 20px;
+  margin-bottom: 25px;
+  padding: 10px;
 }
 
 h1 {
   font-size: 3rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 12px;
   letter-spacing: -0.5px;
+  filter: drop-shadow(0 2px 10px rgba(59, 130, 246, 0.2));
 }
 
 h2, h3, h4 {
@@ -72,27 +93,27 @@ h2, h3, h4 {
 button {
   background: var(--primary);
   color: #ffffff;
-  border: 2px solid #1e40af;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 12px 24px;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 1.05rem;
   font-weight: 700;
-  transition: all 0.2s ease-in-out;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 button:hover {
   background: var(--primary-hover);
-  border-color: #1e3a8a;
+  border-color: rgba(255, 255, 255, 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.5);
 }
 
 button:disabled {
-  background: #cbd5e1;
+  background: #1e293b;
   color: #64748b;
-  border: 2px solid #94a3b8;
+  border: 1px solid #334155;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -100,32 +121,43 @@ button:disabled {
 
 .btn-danger {
   background: var(--danger);
-  border: 2px solid #991b1b;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 .btn-danger:hover {
-  background: #b91c1c;
-  border-color: #7f1d1d;
-  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
+  background: #f87171;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.5);
 }
 
 .btn-buy {
-  border: 2px solid #166534;
+  background: var(--success);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 .btn-buy:hover {
-  border-color: #14532d;
+  background: #34d399;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-sell {
+  background: var(--danger);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+.btn-sell:hover {
+  background: #f87171;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
 }
 
 input, select {
   padding: 13px 18px;
-  border-radius: 10px;
-  border: 2px solid #94a3b8;
-  background: #ffffff;
-  color: #0f172a;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text-main);
   font-size: 1.05rem;
   font-weight: 600;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.25s ease;
 }
 
 input::placeholder {
@@ -133,23 +165,26 @@ input::placeholder {
 }
 
 input:focus, select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.85);
 }
 
 .card {
   padding: 24px;
   flex: 1;
-  border: 2px solid #cbd5e1;
-  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-card);
 }
 
 #login-screen, #room-screen {
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 600px;
+  margin: 40px auto;
   padding: 44px;
   text-align: center;
-  border: 2.5px solid #64748b;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .player-list {
@@ -158,15 +193,15 @@ input:focus, select:focus {
 }
 
 .player-list li {
-  background: #ffffff;
-  border: 2px solid #94a3b8;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 16px;
   margin-bottom: 12px;
   border-radius: 12px;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+  color: var(--text-main);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* Game Screen */
@@ -178,28 +213,28 @@ input:focus, select:focus {
 }
 
 .timer-box {
-  font-size: 2.4rem;
+  font-size: 2.2rem;
   font-weight: 900;
-  color: #78350f;
-  background: #fef3c7;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
   padding: 12px 28px;
   border-radius: 16px;
-  border: 2.5px solid #d97706;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  border: 1.5px solid rgba(251, 191, 36, 0.4);
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.15);
   letter-spacing: 1px;
 }
 
 .timer-urgent {
-  color: #991b1b;
-  background: #fee2e2;
-  border: 2.5px solid #dc2626;
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.45);
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1.5px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
   animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
   0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.03); }
   100% { transform: scale(1); }
 }
 
@@ -217,21 +252,22 @@ input:focus, select:focus {
 
 .my-status-card {
   padding: 24px;
-  background: #ffffff;
-  border: 2.5px solid #2563eb;
-  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+  background: var(--bg-card);
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.15);
 }
 
 .ranking-card {
   padding: 24px;
   flex: 1;
-  border: 2px solid #94a3b8;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
 }
 
 .player-name {
   font-size: 1.65rem;
   font-weight: 800;
-  color: #6d28d9;
+  color: #a78bfa;
 }
 
 /* Stocks Panel */
@@ -246,28 +282,28 @@ input:focus, select:focus {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: #ffffff;
-  border: 2px solid #cbd5e1;
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
-  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stock-card:hover {
-  border-color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.4);
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 15px 30px rgba(59, 130, 246, 0.15);
 }
 
 .stock-name {
   font-size: 1.45rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .stock-desc {
-  font-size: 1rem;
-  color: #475569;
+  font-size: 0.95rem;
+  color: var(--text-muted);
   line-height: 1.45;
   font-weight: 500;
 }
@@ -280,10 +316,12 @@ input:focus, select:focus {
 }
 
 .price-up {
-  color: #16a34a;
+  color: var(--success);
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.3));
 }
 .price-down {
-  color: #dc2626;
+  color: var(--danger);
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.3));
 }
 
 /* 보유 수량 돋보이는 뱃지 스타일 */
@@ -291,8 +329,8 @@ input:focus, select:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f3e8ff;
-  border: 2px solid #9333ea;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1.5px solid rgba(139, 92, 246, 0.4);
   padding: 8px 14px;
   border-radius: 10px;
   margin: 4px 0 10px 0;
@@ -301,13 +339,13 @@ input:focus, select:focus {
 .shares-label {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #6d28d9;
+  color: #c084fc;
 }
 
 .shares-count {
   font-size: 1.1rem;
   font-weight: 900;
-  color: #581c87;
+  color: #e9d5ff;
 }
 
 .trade-controls {
@@ -316,33 +354,34 @@ input:focus, select:focus {
   gap: 8px;
   margin-top: auto;
   padding-top: 10px;
-  border-top: 1.5px dashed #cbd5e1;
+  border-top: 1.5px dashed rgba(255, 255, 255, 0.08);
 }
 
 .qty-label {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #334155;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .trade-controls input.qty-input {
-  width: 54px !important;
-  padding: 6px 4px !important;
+  width: 60px !important;
+  padding: 8px 6px !important;
   font-size: 0.95rem !important;
   font-weight: 800 !important;
   text-align: center;
-  border-radius: 6px !important;
-  border: 2px solid #64748b !important;
-  background: #ffffff !important;
+  border-radius: 8px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: var(--text-main) !important;
 }
 
 /* Quiz Modal */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(8px);
+  background: rgba(3, 7, 18, 0.8);
+  backdrop-filter: blur(12px);
   display: none;
   justify-content: center;
   align-items: center;
@@ -354,10 +393,10 @@ input:focus, select:focus {
   max-width: 600px;
   padding: 30px;
   text-align: center;
-  background: #ffffff;
-  border: 2.5px solid #64748b;
-  border-radius: 18px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  background: #0f172a;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
 .quiz-options {
@@ -368,19 +407,20 @@ input:focus, select:focus {
 }
 
 .quiz-options button {
-  background: #f8fafc;
-  border: 2px solid #94a3b8;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   text-align: left;
   padding: 16px;
-  color: #0f172a;
+  color: var(--text-main);
   font-weight: 700;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
 }
 
 .quiz-options button:hover {
-  background: #eff6ff;
-  border-color: #2563eb;
-  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #3b82f6;
 }
 
 .quiz-result {
@@ -388,16 +428,13 @@ input:focus, select:focus {
   font-size: 1.15rem;
   font-weight: 700;
   min-height: 80px;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .hint-box {
   margin-top: 20px;
   padding: 18px;
-  background: #f3e8ff;
-  border: 2px solid #a855f7;
   border-radius: 12px;
-  color: #581c87;
   display: none;
   font-weight: 700;
   text-align: left;
@@ -407,7 +444,7 @@ input:focus, select:focus {
 .quiz-step-badge {
   display: inline-block;
   padding: 4px 12px;
-  background: #7c3aed;
+  background: #8b5cf6;
   color: #ffffff;
   border-radius: 20px;
   font-weight: 800;
@@ -433,19 +470,19 @@ input:focus, select:focus {
   margin-bottom: 12px;
   font-size: 1.2rem;
   font-weight: 700;
-  background: #ffffff;
-  border: 2px solid #94a3b8;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  color: #0f172a;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+  color: var(--text-main);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
 .ranking-item.first-place {
-  background: #fef3c7;
-  border: 2.5px solid #d97706;
-  color: #78350f;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1.5px solid #f59e0b;
+  color: #fbbf24;
   font-weight: 900;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
 }
 
 @media (max-width: 768px) {
@@ -465,7 +502,7 @@ input:focus, select:focus {
   z-index: 999;
   padding: 20px;
   border-radius: 14px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -476,13 +513,13 @@ input:focus, select:focus {
 }
 
 .news-banner.good-news {
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); /* 상승 특보: 강렬 레드 */
-  border: 2.5px solid #ef4444;
+  background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%); /* 상승 특보: 강렬 레드 */
+  border: 1.5px solid #ef4444;
 }
 
 .news-banner.bad-news {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); /* 하락 특보: 강렬 블루 */
-  border: 2.5px solid #3b82f6;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%); /* 하락 특보: 강렬 블루 */
+  border: 1.5px solid #3b82f6;
 }
 
 .news-content {
@@ -500,7 +537,7 @@ input:focus, select:focus {
   font-size: 1.5rem;
   margin-left: 10px;
   padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.35);
   border-radius: 8px;
 }
 
@@ -523,16 +560,16 @@ input:focus, select:focus {
 }
 
 .skip-btn {
-  background: #ffffff;
+  background: rgba(30, 41, 59, 0.7);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border: 2px solid #64748b;
-  color: #0f172a;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
   padding: 12px 24px;
   border-radius: 30px;
   font-size: 1rem;
   font-weight: 800;
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -542,23 +579,23 @@ input:focus, select:focus {
 .skip-btn:hover:not(:disabled) {
   background: var(--accent);
   color: #ffffff;
-  border-color: #6d28d9;
+  border-color: rgba(255, 255, 255, 0.25);
   transform: translateY(-3px);
-  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.45);
 }
 
 .skip-btn:disabled {
-  background: #f1f5f9;
-  border: 2px solid #cbd5e1;
-  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1.5px solid rgba(255, 255, 255, 0.05);
+  color: #475569;
   cursor: not-allowed;
 }
 
 .skip-btn.voted {
   background: var(--success);
   color: #ffffff;
-  border-color: #15803d;
-  box-shadow: 0 4px 18px rgba(22, 163, 74, 0.35);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
   cursor: not-allowed;
 }
 
@@ -587,18 +624,18 @@ input:focus, select:focus {
 }
 
 .character-card {
-  background: #ffffff;
-  border: 2px solid #94a3b8;
+  background: var(--bg-card);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 10px 8px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  transition: transform 0.2s, border-color 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
 }
 
 .character-card:hover {
   transform: translateY(-2px);
-  border-color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .character-avatar-wrap {
@@ -616,8 +653,8 @@ input:focus, select:focus {
   height: 76px;
   object-fit: cover;
   border-radius: 50%;
-  border: 2.5px solid #cbd5e1;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .character-fallback-icon {
@@ -628,7 +665,7 @@ input:focus, select:focus {
 .character-name {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -643,13 +680,13 @@ input:focus, select:focus {
 }
 
 .status-up {
-  color: #16a34a;
-  background: #dcfce7;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
 }
 
 .status-down {
-  color: #dc2626;
-  background: #fee2e2;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 @media (max-width: 900px) {
@@ -662,7 +699,3 @@ input:focus, select:focus {
     justify-content: center;
   }
 }
-
-
-
-

@@ -752,7 +752,7 @@ function renderStockChart(companies, changes) {
             display: false
           },
           ticks: {
-            color: '#0f172a',
+            color: '#94a3b8',
             font: {
               family: 'Pretendard',
               size: 12,
@@ -762,10 +762,10 @@ function renderStockChart(companies, changes) {
         },
         y: {
           grid: {
-            color: 'rgba(0, 0, 0, 0.08)'
+            color: 'rgba(255, 255, 255, 0.08)'
           },
           ticks: {
-            color: '#334155',
+            color: '#94a3b8',
             font: {
               family: 'Pretendard',
               size: 11
