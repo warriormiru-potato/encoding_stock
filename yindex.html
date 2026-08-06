@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>반도체 불량품 검사 시뮬레이터</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Particle background -->
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- SCREEN: Start -->
+  <div id="startScreen" class="screen active">
+    <div class="start-content">
+      <div class="logo-badge">EDS / 패키징</div>
+      <h1 class="game-title">반도체 불량품 검사</h1>
+      <p class="game-subtitle">숨은 불량칩을 찾아라!</p>
+      <div class="chip-preview">
+        <div class="preview-chip normal"></div>
+        <div class="preview-chip defect crack"></div>
+        <div class="preview-chip normal"></div>
+      </div>
+      <div class="rules-box">
+        <div class="rule"><span class="rule-icon">🔍</span><span>12개 칩 중 불량품 1~3개 숨어있음</span></div>
+        <div class="rule"><span class="rule-icon">⏱️</span><span>2.5~4.5초 안에 불량칩 클릭! (라운드마다 단축)</span></div>
+        <div class="rule"><span class="rule-icon">🎭</span><span>의심스러워 보이는 <b>페이크 칩</b>도 존재!</span></div>
+        <div class="rule"><span class="rule-icon">⚡</span><span>빠를수록 보너스 점수 · 콤보 보너스 획득</span></div>
+        <div class="rule"><span class="rule-icon">💀</span><span>오탐지·페이크 클릭 시 <b>-150점</b> 감점</span></div>
+      </div>
+      <button id="startBtn" class="btn-primary">검사 시작</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Game -->
+  <div id="gameScreen" class="screen">
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">라운드</span>
+        <span id="roundDisplay" class="hud-value">1 / 5</span>
+      </div>
+      <div class="hud-item center">
+        <span class="hud-label">남은 시간</span>
+        <div class="timer-wrap">
+          <svg class="timer-ring" viewBox="0 0 60 60">
+            <circle class="ring-bg" cx="30" cy="30" r="26"/>
+            <circle id="timerCircle" class="ring-fg" cx="30" cy="30" r="26"/>
+          </svg>
+          <span id="timerText" class="timer-text">5</span>
+        </div>
+      </div>
+      <div class="hud-item right">
+        <span class="hud-label">점수</span>
+        <span id="scoreDisplay" class="hud-value score-val">0</span>
+      </div>
+    </div>
+
+    <!-- Conveyor belt area -->
+    <div class="conveyor-container">
+      <div class="conveyor-label">품질 검사 라인 — 12개 중 불량칩을 찾아 클릭!</div>
+      <div class="conveyor-belt">
+        <div class="belt-track">
+          <div class="belt-line"></div><div class="belt-line"></div>
+          <div class="belt-line"></div><div class="belt-line"></div>
+          <div class="belt-line"></div><div class="belt-line"></div>
+        </div>
+        <div id="chipGrid" class="chip-grid"></div>
+      </div>
+    </div>
+
+    <!-- Status message -->
+    <div id="statusMsg" class="status-msg"></div>
+
+    <!-- Combo display -->
+    <div id="comboDisplay" class="combo-display"></div>
+  </div>
+
+  <!-- SCREEN: Round Result -->
+  <div id="resultScreen" class="screen">
+    <div class="result-content">
+      <div id="resultIcon" class="result-icon"></div>
+      <h2 id="resultTitle" class="result-title"></h2>
+      <p id="resultDesc" class="result-desc"></p>
+      <div id="resultScore" class="result-score"></div>
+      <button id="nextRoundBtn" class="btn-primary">다음 라운드</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Final -->
+  <div id="finalScreen" class="screen">
+    <div class="final-content">
+      <div id="finalBadge" class="final-badge"></div>
+      <h2 class="final-title">검사 완료!</h2>
+      <div class="final-stats">
+        <div class="stat-card">
+          <span class="stat-label">최종 점수</span>
+          <span id="finalScore" class="stat-value">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">정확도</span>
+          <span id="finalAccuracy" class="stat-value">0%</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">등급</span>
+          <span id="finalGrade" class="stat-value grade">-</span>
+        </div>
+      </div>
+      <div id="finalComment" class="final-comment"></div>
+      <button id="restartBtn" class="btn-primary">다시 시작</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
