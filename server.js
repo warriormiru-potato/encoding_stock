@@ -194,7 +194,7 @@ async function startServer() {
       const room = rooms[roomId];
       const requester = room?.players.find(p => p.socketId === socket.id);
       if (room && requester && room.host === requester.id) {
-        room.scenario = SCENARIOS.find(s => s.id === scenarioId);
+        room.scenario = SCENARIOS.find(s => Number(s.id) === Number(scenarioId));
         room.status = 'playing';
         room.round = 1;
         room.skipVotes = [];
@@ -245,16 +245,21 @@ async function startServer() {
         if (player.cash >= totalCost) {
           player.cash -= totalCost;
           player.shares[companyId] += qty;
+          // 매수 시 주가 소폭 상승 (주당 0.5% 상승)
+          comp.basePrice = Math.round(comp.basePrice * (1 + (0.005 * qty)));
         }
       } else {
         if (player.shares[companyId] >= qty) {
           player.cash += totalCost;
           player.shares[companyId] -= qty;
+          // 매도 시 주가 소폭 하락 (주당 0.5% 하락)
+          comp.basePrice = Math.max(1, Math.round(comp.basePrice * (1 - (0.005 * qty))));
         }
       }
 
       calculateAssets(room);
       io.to(roomId).emit('updatePlayers', room.players);
+      io.to(roomId).emit('updateCompanies', room.companies);
     });
 
     // 다음 라운드 진행 헬퍼
@@ -287,7 +292,8 @@ async function startServer() {
         io.to(roomId).emit('roundStarted', {
           round: room.round,
           companies: room.companies,
-          players: room.players
+          players: room.players,
+          scenario: room.scenario
         });
         startRoundTimer(roomId);
       }

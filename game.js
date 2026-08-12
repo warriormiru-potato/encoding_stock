@@ -264,7 +264,10 @@ function setupRound(data, isReconnect = false) {
   } else {
     // 재접속 시 이미 퀴즈를 풀었다면 힌트 버튼 표시
     const myData = data.players.find(p => p.id === myPlayerId);
-    if (myData && myData.quizSolved && currentHintHtml) {
+    if (myData && myData.quizSolved) {
+      if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
+      currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
+      currentHint2Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint2 || currentRoundDataForQuiz.hint || "") : "";
       viewHintBtn.style.display = 'inline-block';
     }
   }
@@ -322,8 +325,30 @@ socket.on('updatePlayers', (players) => {
   if (myData) {
     window.COMPANIES.forEach(c => {
       const shareEl = document.getElementById(`share-${c.id}`);
-      if (shareEl) shareEl.textContent = `보유량: ${myData.shares[c.id]}주`;
+      if (shareEl) {
+        // 기존의 innerHTML 구조에 맞춰서 수량만 업데이트하거나, 텍스트 업데이트
+        const countEl = shareEl.querySelector('.shares-count');
+        if (countEl) {
+          countEl.textContent = `${myData.shares[c.id]}주`;
+        } else {
+          shareEl.textContent = `보유량: ${myData.shares[c.id]}주`;
+        }
+      }
     });
+  }
+});
+
+socket.on('updateCompanies', (companies) => {
+  // window.COMPANIES 가격 갱신 및 화면 재렌더링
+  companies.forEach(c => {
+    const target = window.COMPANIES.find(orig => orig.id === c.id);
+    if (target) {
+      target.basePrice = c.basePrice;
+    }
+  });
+  // 주식 패널 렌더링 시 플레이어 목록(자산 상태)도 필요하므로 me 상태 기반으로 재랜더링
+  if (currentRoom) {
+    renderStocks(companies, [me]);
   }
 });
 
@@ -520,10 +545,10 @@ function showMiniGameModal(data) {
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'MINIGAME_COMPLETE') {
     const score = e.data.score;
-    // 800점 이상 힌트 1, 2000점 이상 힌트 2 해금
-    if (score >= 2000) {
+    // 1500점 이상 3000점 미만 힌트 1, 3000점 이상 힌트 2 해금
+    if (score >= 3000) {
       correctQuizCount = 2;
-    } else if (score >= 800) {
+    } else if (score >= 1500) {
       correctQuizCount = 1;
     } else {
       correctQuizCount = 0;
@@ -545,9 +570,9 @@ window.addEventListener('message', (e) => {
     if (earnedHintsCount === 2) {
       resultMsg += `🎉 최고 점수로 독점 힌트 1 & 2가 모두 해금되었습니다!`;
     } else if (earnedHintsCount === 1) {
-      resultMsg += `💡 힌트 1(애매한 힌트)이 해금되었습니다!\n(힌트 2를 얻으려면 2,000점 이상 필요)`;
+      resultMsg += `💡 힌트 1(애매한 힌트)이 해금되었습니다!\n(힌트 2를 얻으려면 3,000점 이상 필요)`;
     } else {
-      resultMsg += `❌ 점수 미달(800점 미만)로 힌트를 획득하지 못했습니다.`;
+      resultMsg += `❌ 점수 미달(1500점 미만)로 힌트를 획득하지 못했습니다.`;
     }
     alert(resultMsg);
   }
