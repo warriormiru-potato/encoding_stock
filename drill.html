@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>반도체 미세 드릴링 레이저 미션</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #030712;
+      color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .game-container {
+      background: rgba(17, 24, 39, 0.8);
+      border: 2px solid #3b82f6;
+      box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      max-width: 700px;
+      width: 95%;
+    }
+    h2 {
+      font-family: 'Orbitron', sans-serif;
+      color: #3b82f6;
+      margin-bottom: 8px;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+    p {
+      color: #9ca3af;
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+    }
+    canvas {
+      background: #090d16;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+    }
+    .stat-val {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: bold;
+      color: #10b981;
+    }
+    .btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    .btn:hover {
+      background: #2563eb;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+    }
+    #keys-guide {
+      margin-top: 15px;
+      color: #6b7280;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <h2>⚡ DRILL MISSION: 회로 정밀 가공</h2>
+    <p>WASD 키를 조작하여 화면의 회로 도안(파란 점선)을 따라 드릴을 조작하세요!</p>
+    
+    <div class="stats">
+      <div>남은 시간: <span id="time-left" class="stat-val">15</span>초</div>
+      <div>현재 일치율: <span id="similarity" class="stat-val">0%</span></div>
+    </div>
+
+    <canvas id="drillCanvas" width="500" height="400"></canvas>
+
+    <button id="start-btn" class="btn">가공 개시</button>
+    
+    <div id="keys-guide">조작법: W (위), A (왼쪽), S (아래), D (오른쪽) | 속도가 빠르니 정밀하게 제어하세요!</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('drillCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('start-btn');
+    const timeLeftEl = document.getElementById('time-left');
+    const similarityEl = document.getElementById('similarity');
+
+    let gameActive = false;
+    let timeLeft = 15;
+    let timerInterval = null;
+
+    // 드릴 상태
+    const drill = {
+      x: 250,
+      y: 50,
+      speed: 3.5,
+      path: [] // 플레이어가 지나간 경로
+    };
+
+    // 타겟 도안 (둥근 회로 패턴)
+    const targetPattern = [];
+    function generateTargetPattern() {
+      // 타원형 나선 궤도 생성
+      const centerX = 250;
+      const centerY = 200;
+      for (let angle = 0; angle < Math.PI * 4; angle += 0.05) {
+        const radius = 30 + angle * 12;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        targetPattern.push({ x, y });
+      }
+    }
+    generateTargetPattern();
+
+    // 키 조작 상태
+    const keys = { w: false, a: false, s: false, d: false };
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(key)) {
+        keys[key] = true;
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(key)) {
+        keys[key] = false;
+      }
+    });
+
+    startBtn.addEventListener('click', startGame);
+
+    function startGame() {
+      if (gameActive) return;
+      gameActive = true;
+      startBtn.style.display = 'none';
+      
+      // 드릴 초기 위치를 패턴의 첫 번째 지점으로 설정
+      if (targetPattern.length > 0) {
+        drill.x = targetPattern[0].x;
+        drill.y = targetPattern[0].y;
+      }
+      drill.path = [{ x: drill.x, y: drill.y }];
+      
+      timeLeft = 15;
+      timeLeftEl.textContent = timeLeft;
+      
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timeLeftEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function calculateSimilarity() {
+      if (drill.path.length === 0) return 0;
+      let totalDist = 0;
+      
+      // 각 타겟 포인트에서 플레이어 이동 경로의 최단 거리 측정
+      targetPattern.forEach(tp => {
+        let minDist = Infinity;
+        drill.path.forEach(dp => {
+          const dist = Math.hypot(tp.x - dp.x, tp.y - dp.y);
+          if (dist < minDist) minDist = dist;
+        });
+        totalDist += minDist;
+      });
+
+      const avgDist = totalDist / targetPattern.length;
+      // 기준치 거리(30px) 대비 유사도 100% 환산
+      const sim = Math.max(0, Math.min(100, Math.round(100 - (avgDist / 0.3))));
+      return sim;
+    }
+
+    function gameLoop() {
+      if (!gameActive) return;
+
+      // 조작 제어
+      if (keys.w) drill.y -= drill.speed;
+      if (keys.s) drill.y += drill.speed;
+      if (keys.a) drill.x -= drill.speed;
+      if (keys.d) drill.x += drill.speed;
+
+      // 벽 경계
+      drill.x = Math.max(10, Math.min(canvas.width - 10, drill.x));
+      drill.y = Math.max(10, Math.min(canvas.height - 10, drill.y));
+
+      drill.path.push({ x: drill.x, y: drill.y });
+
+      // 그리기
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. 도안 그리기
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.lineWidth = 6;
+      ctx.setLineDash([5, 10]);
+      targetPattern.forEach((p, idx) => {
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 2. 플레이어 가공 경로 그리기
+      ctx.beginPath();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 4;
+      drill.path.forEach((p, idx) => {
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+
+      // 3. 드릴 헤드 그리기
+      ctx.beginPath();
+      ctx.arc(drill.x, drill.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 15;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // 실시간 유사도 업데이트
+      const currentSim = calculateSimilarity();
+      similarityEl.textContent = `${currentSim}%`;
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+      gameActive = false;
+      clearInterval(timerInterval);
+      
+      const finalSim = calculateSimilarity();
+      alert(`가공 완료! 최종 일치율: ${finalSim}%`);
+
+      // 부모 창으로 데이터 공유
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'DRILL_GAME_COMPLETE',
+          score: finalSim
+        }, '*');
+      }
+    }
+  </script>
+</body>
+</html>

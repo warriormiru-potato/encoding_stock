@@ -98,6 +98,7 @@ let state = {
 // ── DOM refs ────────────────────────────────────────────
 const screens = {
   start:  document.getElementById('startScreen'),
+  guide:  document.getElementById('guideScreen'),
   game:   document.getElementById('gameScreen'),
   result: document.getElementById('resultScreen'),
   final:  document.getElementById('finalScreen'),
@@ -110,7 +111,8 @@ const chipGrid      = document.getElementById('chipGrid');
 const statusMsg     = document.getElementById('statusMsg');
 const comboDisplay  = document.getElementById('comboDisplay');
 
-document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('startBtn').addEventListener('click', () => showScreen('guide'));
+document.getElementById('guideStartBtn').addEventListener('click', startGame);
 document.getElementById('nextRoundBtn').addEventListener('click', nextRound);
 document.getElementById('restartBtn').addEventListener('click', restartGame);
 
@@ -123,11 +125,30 @@ function showScreen(name) {
 // ── Preview chip (start screen) ─────────────────────────
 function buildPreviewChips() {
   document.querySelectorAll('.preview-chip').forEach((el, i) => {
-    el.innerHTML = buildChipHTML(i === 1 ? 'crack' : null, i, false);
-    el.classList.remove('normal', 'defect', 'crack');
+    let type = null;
+    if (el.classList.contains('crack')) type = 'crack';
+    el.innerHTML = buildChipHTML(type, i, false);
   });
+
+  const guideNormal = document.getElementById('guide-normal');
+  const guideCrack = document.getElementById('guide-crack');
+  const guideBurn = document.getElementById('guide-burn');
+  const guideScratch = document.getElementById('guide-scratch');
+  const guideVoid = document.getElementById('guide-void');
+  const guideDecoy = document.getElementById('guide-decoy');
+
+  if (guideNormal) guideNormal.innerHTML = buildChipHTML(null, 1, false);
+  if (guideCrack) guideCrack.innerHTML = buildChipHTML('crack', 2, false);
+  if (guideBurn) guideBurn.innerHTML = buildChipHTML('burn', 3, false);
+  if (guideScratch) guideScratch.innerHTML = buildChipHTML('scratch', 4, false);
+  if (guideVoid) guideVoid.innerHTML = buildChipHTML('void', 5, false);
+  if (guideDecoy) {
+    guideDecoy.innerHTML = buildChipHTML(null, 6, false);
+    guideDecoy.classList.add('decoy');
+  }
 }
 buildPreviewChips();
+
 
 // ── Build chip HTML ─────────────────────────────────────
 // noiseAmt: 0–1, adds subtle random tint variation to ALL chips
@@ -492,6 +513,8 @@ function showFinalScreen() {
 
   // 부모 창(주식 게임)이 존재할 경우 결과 전달 및 돌아가기 버튼 노출
   if (window.parent && window.parent !== window) {
+    const restartBtn = document.getElementById('restartBtn');
+    if (restartBtn) restartBtn.style.display = 'none';
     const exitBtn = document.getElementById('exitMinigameBtn');
     if (exitBtn) {
       exitBtn.style.display = 'block';

@@ -34,6 +34,50 @@
     </div>
   </div>
 
+  <!-- SCREEN: Guide -->
+  <div id="guideScreen" class="screen">
+    <div class="start-content" style="max-width: 650px;">
+      <div class="logo-badge">품질 기준 가이드</div>
+      <h2 class="game-title" style="font-size: 1.6rem; margin-bottom: 15px;">🔍 정상 및 불량 판정 가이드</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">검사 시작 전, 정상 칩과 5가지 불량 패턴의 특징을 반드시 확인하세요!</p>
+      
+      <div class="guide-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+        <div class="guide-item glass" style="padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(0,255,200,0.2);">
+          <div style="font-weight: bold; color: var(--accent-green); margin-bottom: 8px;">정상 칩</div>
+          <div class="preview-chip normal" id="guide-normal" style="width: 60px; height: 60px; margin: 0 auto 5px;"></div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">결함이 없고 깨끗합니다.</div>
+        </div>
+        <div class="guide-item glass" style="padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,68,68,0.2);">
+          <div style="font-weight: bold; color: var(--accent-red); margin-bottom: 8px;">크랙 (Crack)</div>
+          <div class="preview-chip defect crack" id="guide-crack" style="width: 60px; height: 60px; margin: 0 auto 5px;"></div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">미세한 실선 균열 발생</div>
+        </div>
+        <div class="guide-item glass" style="padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,68,68,0.2);">
+          <div style="font-weight: bold; color: var(--accent-red); margin-bottom: 8px;">연소 (Burn)</div>
+          <div class="preview-chip defect burn" id="guide-burn" style="width: 60px; height: 60px; margin: 0 auto 5px;"></div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">그을린 듯한 얼룩 발생</div>
+        </div>
+        <div class="guide-item glass" style="padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,68,68,0.2);">
+          <div style="font-weight: bold; color: var(--accent-red); margin-bottom: 8px;">스크래치</div>
+          <div class="preview-chip defect scratch" id="guide-scratch" style="width: 60px; height: 60px; margin: 0 auto 5px;"></div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">가느다란 긁힘 흔적</div>
+        </div>
+        <div class="guide-item glass" style="padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,68,68,0.2);">
+          <div style="font-weight: bold; color: var(--accent-red); margin-bottom: 8px;">기포 (Void)</div>
+          <div class="preview-chip defect void" id="guide-void" style="width: 60px; height: 60px; margin: 0 auto 5px;"></div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">작은 구멍/공동으로 파임</div>
+        </div>
+        <div class="guide-item glass" style="padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,140,0,0.2);">
+          <div style="font-weight: bold; color: var(--accent-orange); margin-bottom: 8px;">페이크 (Decoy)</div>
+          <div class="preview-chip decoy" id="guide-decoy" style="width: 60px; height: 60px; margin: 0 auto 5px;"></div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">의심스럽지만 정상 칩</div>
+        </div>
+      </div>
+      
+      <button id="guideStartBtn" class="btn-primary">이해했습니다 (시작)</button>
+    </div>
+  </div>
+
   <!-- SCREEN: Game -->
   <div id="gameScreen" class="screen">
     <!-- HUD -->

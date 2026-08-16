@@ -70,6 +70,7 @@ async function loadGameData() {
   const quizCsv = await fetchCsv(GAME_CONFIG.GOOGLE_SHEETS.QUIZ_URL, 'data/quiz.csv');
   const newsCsv = await fetchCsv(GAME_CONFIG.GOOGLE_SHEETS.NEWS_URL, 'data/news.csv');
   const scCsv = await fetchCsv(GAME_CONFIG.GOOGLE_SHEETS.SCENARIOS_URL, 'data/scenarios.csv');
+  const itemsCsv = await fetchCsv(GAME_CONFIG.GOOGLE_SHEETS.ITEMS_URL, 'data/items.csv');
 
   // Parse Companies (JSON or CSV)
   const rawCompanies = parseRawData(companiesCsv);
@@ -77,7 +78,20 @@ async function loadGameData() {
     id: c.id,
     name: c.name,
     desc: c.desc,
-    basePrice: parseInt(c.basePrice, 10)
+    basePrice: parseInt(c.basePrice, 10),
+    maxBuyR1: parseInt(c.maxBuyR1, 10) || 9999,
+    maxBuyR2: parseInt(c.maxBuyR2, 10) || 9999,
+    maxBuyR3: parseInt(c.maxBuyR3, 10) || 9999,
+    maxBuyR4: parseInt(c.maxBuyR4, 10) || 9999,
+    maxBuyR5: parseInt(c.maxBuyR5, 10) || 9999
+  }));
+
+  // Parse Items
+  const rawItems = parseRawData(itemsCsv);
+  const ITEMS = rawItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    desc: item.desc
   }));
 
   // Parse Quiz
@@ -130,6 +144,17 @@ async function loadGameData() {
       }
     });
 
+    // company-specific hints: hint_companyid (e.g. hint_jswtech)
+    const companyHints = {};
+    Object.keys(r).forEach(k => {
+      if (k && k.trim().toLowerCase().startsWith('hint_')) {
+        const compIdLower = k.trim().substring(5).toLowerCase();
+        if (companyIdMap[compIdLower]) {
+          companyHints[companyIdMap[compIdLower]] = r[k];
+        }
+      }
+    });
+
     // firsthint (애매한 힌트) & secondhint (분명한 힌트) 파싱 (fallback 지원)
     const rawHint = r.hint || "";
     const hint1 = (r.firsthint && r.firsthint.trim() !== "") ? r.firsthint
@@ -143,13 +168,14 @@ async function loadGameData() {
       round: parseInt(r.round, 10),
       hint1: hint1,
       hint2: hint2,
+      companyHints: companyHints,
       changes: changes
     });
   });
 
   const SCENARIOS = Object.values(scMap);
 
-  return { COMPANIES, QUIZ_BANK, BREAKING_NEWS, SCENARIOS };
+  return { COMPANIES, QUIZ_BANK, BREAKING_NEWS, SCENARIOS, ITEMS };
 }
 
 module.exports = { loadGameData };

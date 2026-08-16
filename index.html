@@ -81,9 +81,16 @@
       <div class="game-header">
         <div>
           <h2 id="scenario-title">시나리오 제목</h2>
-          <p id="round-indicator">Round 1 / 3</p>
+          <p id="round-indicator">Round 1 / 5</p>
+        </div>
+        <!-- 턴 표시 HUD (2라운드부터 활성화) -->
+        <div id="turn-hud" style="display:none; text-align: center; flex-grow: 1; padding: 10px; background: rgba(59, 130, 246, 0.15); border-radius: 10px; border: 1px dashed #3b82f6; margin: 0 20px;">
+          <span style="font-weight: bold; font-size: 1.1rem; color: #60a5fa;">현재 거래자: <span id="active-turn-player">-</span></span>
+          <span style="margin-left: 15px; color: #f59e0b; font-weight: bold;">턴 시간: <span id="turn-timer-display">45</span>초</span>
+          <button id="skip-turn-btn" style="margin-left: 15px; padding: 5px 12px; font-size: 0.85rem; background: var(--danger); border-radius: 6px;" disabled>턴 넘기기 (15초 대기)</button>
         </div>
         <div style="display:flex; align-items:center; gap: 15px;">
+          <button id="view-past-news-btn" style="padding: 8px 15px; font-size: 0.9rem; background: var(--secondary);">🚨 지난 속보</button>
           <button id="view-hint-btn" style="display:none; padding: 8px 15px; font-size: 0.9rem; background: var(--secondary);">💡 힌트 다시 보기</button>
           <div class="timer-box" id="timer-display">03:00</div>
         </div>
@@ -103,6 +110,14 @@
           <div class="glass ranking-card" style="margin-top:20px;">
             <h3>실시간 순위</h3>
             <ul id="live-ranking" class="ranking-list small"></ul>
+          </div>
+
+          <!-- 보유 아이템 카드 (4라운드에 표시) -->
+          <div class="glass items-card" id="my-items-card" style="margin-top:20px;">
+            <h3>나의 아이템 (4라운드 전용)</h3>
+            <div id="items-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+              <span style="color:var(--text-muted); font-size:0.9rem;">보유한 아이템이 없습니다.</span>
+            </div>
           </div>
         </div>
 
@@ -196,6 +211,99 @@
         <strong>[획득 조건]</strong> 점수 800점 이상: 힌트 1 해금 | 점수 2000점 이상: 힌트 2 전체 해금!
       </p>
       <iframe id="minigame-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 12px; background: #050a14;"></iframe>
+    </div>
+  </div>
+
+  <!-- 드릴 미니게임 모달 (3라운드 종료 후 실행) -->
+  <div class="modal-overlay" id="drillgame-modal">
+    <div class="modal-content glass" style="max-width: 800px; width: 95%; height: 80vh; padding: 15px; display: flex; flex-direction: column; background: #050a14; border-color: #3b82f6;">
+      <h3 style="color:#3b82f6; margin-bottom: 5px;">🔧 3라운드 특별 미션: 회로 미세 드릴링 가공</h3>
+      <iframe id="drillgame-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 12px; background: #050a14;"></iframe>
+    </div>
+  </div>
+
+  <!-- 지나간 긴급속보 모달 -->
+  <div class="modal-overlay" id="past-news-modal">
+    <div class="modal-content glass" style="max-width: 600px; width: 90%; padding: 25px;">
+      <h3 style="color:var(--danger); margin-bottom: 15px;">🚨 지나간 긴급속보 내역</h3>
+      <div id="past-news-list" style="max-height: 350px; overflow-y: auto; text-align: left; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="color:var(--text-muted);">발생한 속보가 없습니다.</span>
+      </div>
+      <button onclick="document.getElementById('past-news-modal').style.display='none'" style="width:100%;">닫기</button>
+    </div>
+  </div>
+
+  <!-- 주식별 꺾은선그래프 추이 모달 -->
+  <div class="modal-overlay" id="stock-trend-modal">
+    <div class="modal-content glass" style="max-width: 700px; width: 90%; padding: 25px;">
+      <h3 id="trend-modal-title" style="color:var(--accent); margin-bottom: 15px;">📈 주가 변동 추이</h3>
+      <div style="height: 300px; position: relative; margin-bottom: 20px;">
+        <canvas id="single-stock-canvas"></canvas>
+      </div>
+      <button onclick="document.getElementById('stock-trend-modal').style.display='none'" style="width:100%;">닫기</button>
+    </div>
+  </div>
+
+  <!-- 3라운드 종료 후 아이템 랜덤박스 모달 -->
+  <div class="modal-overlay" id="randombox-modal">
+    <div class="modal-content glass" style="max-width: 500px; width: 90%; padding: 30px; text-align: center;">
+      <h2 style="color:#fbbf24; font-family:'Orbitron', sans-serif; margin-bottom: 15px;">🎁 RANDOM ITEM BOX 🎁</h2>
+      <p style="color:var(--text-muted); margin-bottom: 25px;">4라운드에서 전세를 뒤집을 특별한 아이템이 지급됩니다!</p>
+      
+      <!-- 상자 상호작용/회전/오픈 이펙트용 컨테이너 -->
+      <div id="box-animation-area" style="font-size: 5rem; margin-bottom: 25px; animation: pulse 1.5s infinite;">📦</div>
+      
+      <div id="rolled-item-result" style="display:none; margin-bottom: 25px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid #fbbf24;">
+        <h3 id="rolled-item-name" style="color:#fbbf24; font-size:1.4rem;">아이템 이름</h3>
+        <p id="rolled-item-desc" style="font-size:0.9rem; margin-top:5px; color:#ddd;">아이템 설명</p>
+      </div>
+      
+      <button id="open-box-btn" style="width:100%; background:#fbbf24; color:black; font-weight:bold; font-size:1.1rem; padding:12px;">랜덤박스 열기</button>
+    </div>
+  </div>
+
+  <!-- 왜곡된 진실 아이템 사용 타겟 선택 모달 -->
+  <div class="modal-overlay" id="item-use-modal">
+    <div class="modal-content glass" style="max-width: 500px; width: 90%; padding: 25px;">
+      <h3 style="color:#fbbf24; margin-bottom:15px;">🌀 왜곡된 진실 사용 설정</h3>
+      <div style="margin-bottom:15px; text-align:left;">
+        <label style="display:block; margin-bottom:5px; font-weight:bold;">대상 플레이어 선택:</label>
+        <select id="item-target-player" style="width:100%; padding:8px; border-radius:6px; background:#0f172a; color:white; border:1px solid #334155;"></select>
+      </div>
+      <div style="margin-bottom:20px; text-align:left;">
+        <label style="display:block; margin-bottom:5px; font-weight:bold;">힌트를 왜곡할 라운드 선택:</label>
+        <select id="item-target-round" style="width:100%; padding:8px; border-radius:6px; background:#0f172a; color:white; border:1px solid #334155;">
+          <option value="4">4라운드</option>
+          <option value="5">5라운드</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button id="confirm-use-item-btn" style="flex:1; background:var(--accent);">사용하기</button>
+        <button onclick="document.getElementById('item-use-modal').style.display='none'" style="flex:1; background:var(--secondary);">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 역대 누적 순위 모달 -->
+  <div class="modal-overlay" id="overall-rankings-modal">
+    <div class="modal-content glass" style="max-width: 600px; width: 90%; padding: 25px;">
+      <h3 style="color:#f59e0b; margin-bottom: 15px; text-align: center; font-size: 1.5rem;">🏆 명예의 전당 (역대 누적 랭킹)</h3>
+      <div style="max-height: 350px; overflow-y: auto; margin-bottom: 20px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom:8px;">
+              <th style="padding: 10px 5px;">순위</th>
+              <th style="padding: 10px 5px;">플레이어</th>
+              <th style="padding: 10px 5px;">최종 자산</th>
+              <th style="padding: 10px 5px;">날짜</th>
+            </tr>
+          </thead>
+          <tbody id="overall-rankings-body">
+            <!-- 동적 생성 -->
+          </tbody>
+        </table>
+      </div>
+      <button onclick="document.getElementById('overall-rankings-modal').style.display='none'" style="width:100%;">닫기</button>
     </div>
   </div>
 

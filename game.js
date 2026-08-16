@@ -1,9 +1,8 @@
 // game.js - 반도체 모의투자 멀티플레이어 클라이언트
 
-// 로컬 개발 환경인 경우 빈 문자열(동일 origin), 배포 환경인 경우 실제 백엔드 서버 URL 설정
 const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? ''
-  : 'https://encoding-stock.onrender.com'; // 백엔드 배포 후 이 주소를 실제 배포한 서버 주소로 변경하세요.
+  : 'https://encoding-stock.onrender.com';
 
 const socket = io(BACKEND_URL);
 
@@ -16,6 +15,9 @@ if (!myPlayerId) {
   myPlayerId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
   localStorage.setItem('playerId', myPlayerId);
 }
+
+let pastBreakingNews = [];
+let allOverallRankings = [];
 
 // DOM 요소
 const loginScreen = document.getElementById('login-screen');
@@ -53,21 +55,32 @@ const myTotalAssetEl = document.getElementById('my-total-asset');
 const liveRanking = document.getElementById('live-ranking');
 const stocksPanel = document.getElementById('stocks-panel');
 
+// Turn HUD
+const turnHud = document.getElementById('turn-hud');
+const activeTurnPlayerEl = document.getElementById('active-turn-player');
+const turnTimerDisplayEl = document.getElementById('turn-timer-display');
+const skipTurnBtn = document.getElementById('skip-turn-btn');
+
 // Quiz
 const quizModal = document.getElementById('quiz-modal');
 const quizQuestion = document.getElementById('quiz-question');
 const quizOptions = document.getElementById('quiz-options');
 const quizResult = document.getElementById('quiz-result');
 const quizExplain = document.getElementById('quiz-explain');
-const quizHintBox = document.getElementById('quiz-hint-box');
 const closeQuizBtn = document.getElementById('close-quiz-btn');
+
+// Items Card
+const myItemsCard = document.getElementById('my-items-card');
+const itemsListEl = document.getElementById('items-list');
+
+// Chart.js 단일 그래프용 변수
+let singleStockChart = null;
 
 // 유틸리티
 function formatMoney(num) {
   return new Intl.NumberFormat('ko-KR').format(num) + '원';
 }
 
-// 화면 활성화 감지 (탭 전환 시 타이머 동기화)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentRoom) {
     socket.emit('requestSync', { roomId: currentRoom });
@@ -77,18 +90,14 @@ document.addEventListener('visibilitychange', () => {
 socket.on('connect', () => {
   connectionStatus.textContent = '서버 연결 완료!';
   connectionStatus.style.color = 'var(--success)';
-
-  // 방 목록 요청
   socket.emit('getRoomList');
 
-  // 세션 복구 시도
   const savedRoom = localStorage.getItem('roomId');
   if (savedRoom) {
     socket.emit('rejoinRoom', { roomId: savedRoom, playerId: myPlayerId });
   }
 });
 
-// 방 생성
 createRoomBtn.addEventListener('click', () => {
   const name = playerNameInput.value.trim() || 'Player';
   const password = adminPasswordInput.value.trim();
@@ -99,7 +108,6 @@ createRoomBtn.addEventListener('click', () => {
   socket.emit('createRoom', { playerName: name, adminPassword: password, playerId: myPlayerId });
 });
 
-// 방 참가
 joinRoomBtn.addEventListener('click', () => {
   const name = playerNameInput.value.trim() || 'Player';
   const code = roomCodeInput.value.trim().toUpperCase();
@@ -110,7 +118,6 @@ joinRoomBtn.addEventListener('click', () => {
   }
 });
 
-// 방 생성 완료
 socket.on('roomCreated', ({ roomId, player }) => {
   me = player;
   currentRoom = roomId;
@@ -120,7 +127,6 @@ socket.on('roomCreated', ({ roomId, player }) => {
   hostControls.style.display = 'block';
 });
 
-// 방 참가 완료
 socket.on('joinedRoom', ({ roomId, player }) => {
   me = player;
   currentRoom = roomId;
@@ -137,21 +143,22 @@ socket.on('errorMsg', (msg) => {
 socket.on('rejoinFailed', (msg) => {
   console.log('Rejoin failed:', msg);
   localStorage.removeItem('roomId');
-  alert('📢 업데이트됨! (서버 재설정으로 인해 페이지를 새로고침합니다.)');
+  alert('📢 새로고침 복구 완료');
   window.location.reload();
 });
 
-socket.on('disconnect', (reason) => {
+socket.on('disconnect', () => {
   connectionStatus.textContent = '서버와 연결이 끊어졌습니다. 재연결 중...';
   connectionStatus.style.color = 'var(--danger)';
 });
 
-// 재접속 완료
-socket.on('rejoinedRoom', ({ roomId, player, room }) => {
+// 재접속 시 복구
+socket.on('rejoinedRoom', ({ roomId, player, room, overallRankings }) => {
   me = player;
   currentRoom = roomId;
   isHost = (room.host === myPlayerId);
   localStorage.setItem('roomId', roomId);
+  if (overallRankings) allOverallRankings = overallRankings;
 
   if (room.status === 'lobby') {
     showRoomScreen();
@@ -162,24 +169,14 @@ socket.on('rejoinedRoom', ({ roomId, player, room }) => {
       hostControls.style.display = 'none';
       guestWaiting.style.display = 'block';
     }
-  } else if (room.status === 'playing') {
-    setupRound({ scenario: room.scenario, companies: room.companies, players: room.players, round: room.round }, true);
-  } else if (room.status === 'result') {
-    alert('게임 결과 대기 화면으로 복구되었습니다.');
-    // 간소화: 다음 라운드 대기 상태로 바로 이동
+  } else {
     loginScreen.style.display = 'none';
     roomScreen.style.display = 'none';
-    gameScreen.style.display = 'none';
-    resultScreen.style.display = 'block';
-    if (isHost) {
-      document.getElementById('host-next-round-controls').style.display = 'block';
-    } else {
-      document.getElementById('guest-next-round-waiting').style.display = 'block';
-    }
+    gameScreen.style.display = 'block';
+    setupRound({ scenario: room.scenario, companies: room.companies, players: room.players, round: room.round }, true);
   }
 });
 
-// 방 목록 업데이트
 socket.on('roomListUpdate', (rooms) => {
   liveRoomList.innerHTML = '';
   if (rooms.length === 0) {
@@ -191,16 +188,14 @@ socket.on('roomListUpdate', (rooms) => {
     li.style.padding = '10px';
     li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
     li.style.cursor = 'pointer';
-    // 방 코드 대신 방장 이름 표시
     li.innerHTML = `<strong>${r.hostName}님의 서버</strong> <span style="font-size:0.8rem; color:#aaa;">(${r.playerCount}/${r.maxPlayers}명)</span>`;
     li.addEventListener('click', () => {
-      roomCodeInput.value = r.id; // 클릭하면 여전히 내부적으로는 코드가 입력됨
+      roomCodeInput.value = r.id;
     });
     liveRoomList.appendChild(li);
   });
 });
 
-// 로비 업데이트
 socket.on('updateLobby', (players) => {
   playerCount.textContent = players.length;
   lobbyPlayers.innerHTML = '';
@@ -217,14 +212,13 @@ function showRoomScreen() {
   displayRoomCode.textContent = currentRoom;
 }
 
-// 게임 시작 클릭 (호스트)
 startGameBtn.addEventListener('click', () => {
   const randomScenario = window.SCENARIOS[Math.floor(Math.random() * window.SCENARIOS.length)];
   socket.emit('startGame', { roomId: currentRoom, scenarioId: randomScenario.id });
 });
 
-// 게임 시작됨
 socket.on('gameStarted', (data) => {
+  if (data.overallRankings) allOverallRankings = data.overallRankings;
   setupRound(data);
 });
 
@@ -240,13 +234,13 @@ function setupRound(data, isReconnect = false) {
   roomScreen.style.display = 'none';
   resultScreen.style.display = 'none';
   gameScreen.style.display = 'block';
-  viewHintBtn.style.display = 'none'; // 매 라운드 시작 시 숨김
+  viewHintBtn.style.display = 'none';
 
-  // 스킵 버튼 및 카운트다운 초기화
   hasVotedCurrentRound = false;
   skipRoundBtn.disabled = true;
   skipRoundBtn.classList.remove('voted');
-  skipRoundBtn.textContent = `⏳ 60초 후 스킵 가능 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
+  skipRoundBtn.style.display = data.round === 1 ? 'block' : 'none'; // 1라운드에만 전원 스킵투표 표시
+
   document.getElementById('auto-next-round-notice').style.display = 'none';
   if (skipCountdownInterval) {
     clearInterval(skipCountdownInterval);
@@ -254,102 +248,417 @@ function setupRound(data, isReconnect = false) {
   }
 
   if (data.scenario) scenarioTitle.textContent = data.scenario.title;
-  roundIndicator.textContent = `Round ${data.round} / 3`;
+  roundIndicator.textContent = `Round ${data.round} / 5`;
+
+  // 4라운드에만 아이템 슬롯 노출
+  if (data.round === 4) {
+    myItemsCard.style.display = 'block';
+  } else {
+    myItemsCard.style.display = 'none';
+  }
+
+  // 턴 HUD 초기화
+  if (data.round >= 2) {
+    turnHud.style.display = 'flex';
+  } else {
+    turnHud.style.display = 'none';
+  }
 
   renderPlayers(data.players);
-  renderStocks(data.companies, data.players);
+  renderStocks(data.companies, data.players, data.round);
+  updateItemsDisplay(data.players);
 
   if (!isReconnect) {
-    showQuizModal(data);
-  } else {
-    // 재접속 시 이미 퀴즈를 풀었다면 힌트 버튼 표시
-    const myData = data.players.find(p => p.id === myPlayerId);
-    if (myData && myData.quizSolved) {
-      if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
-      currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
-      currentHint2Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint2 || currentRoundDataForQuiz.hint || "") : "";
-      viewHintBtn.style.display = 'inline-block';
-    }
+    showHintQuizSystem(data);
   }
 }
 
+// 힌트 및 2회 퀴즈 시스템
+let selectedHints = []; // 유저가 해금한 힌트 리스트 { companyName, hint }
+let currentRoundScenario = null;
+let currentRoundNumber = 1;
+let selectedCompanyIdsForQuiz = [];
+
+function showHintQuizSystem(data) {
+  currentRoundScenario = data.scenario;
+  currentRoundNumber = data.round;
+  selectedHints = [];
+  selectedCompanyIdsForQuiz = [];
+
+  // 미니게임 예외: 2라운드 시 퀴즈 모달이 아니라 불량 칩 미니게임 실행
+  if (data.round === 2) {
+    showMiniGameModal(data);
+    return;
+  }
+
+  // 1단계: 힌트 선택 화면
+  showHintSelectionScreen();
+}
+
+function showHintSelectionScreen() {
+  document.getElementById('quiz-modal-title').textContent = `💡 라운드 힌트 시작 선택`;
+  document.getElementById('quiz-modal-desc').textContent = '라운드를 시작하기 전, 6개 주식 중 힌트를 보고 싶은 회사를 1개 선택하세요!';
+  
+  quizQuestion.style.display = 'none';
+  quizOptions.innerHTML = '';
+  quizResult.style.display = 'none';
+  document.getElementById('quiz-hint1-box').style.display = 'none';
+  document.getElementById('quiz-hint2-box').style.display = 'none';
+  closeQuizBtn.style.display = 'none';
+  quizModal.style.display = 'flex';
+
+  window.COMPANIES.forEach(c => {
+    const btn = document.createElement('button');
+    btn.textContent = c.name;
+    btn.style.margin = '8px';
+    btn.addEventListener('click', () => {
+      // 선택한 회사의 힌트 즉시 해금
+      const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
+      const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
+      
+      // 왜곡된 진실 아이템 적용 여부 검사
+      let finalHint = rawHint;
+      if (me && currentRoom) {
+        // server-side에 의해 왜곡 힌트 처리된 경우를 위해 placeholder/복제
+      }
+
+      selectedHints.push({ companyName: c.name, hint: finalHint });
+      selectedCompanyIdsForQuiz.push(c.id);
+
+      // 다음 1차 퀴즈로 진행
+      startHintQuizStage(1);
+    });
+    quizOptions.appendChild(btn);
+  });
+}
+
+function startHintQuizStage(stage) {
+  let qCandidates = window.QUIZ_BANK;
+  const qIdx = Math.floor(Math.random() * qCandidates.length);
+  const quizObj = qCandidates[qIdx];
+
+  const stageBadgeText = stage === 1 ? '📝 [퀴즈 1/2] 힌트 추가 해금 도전!' : '🔥 [퀴즈 2/2] 마지막 힌트 추가 해금 도전!';
+  document.getElementById('quiz-modal-title').innerHTML = `<span class="quiz-step-badge">${stageBadgeText}</span><br>상식 퀴즈`;
+  document.getElementById('quiz-modal-desc').textContent = quizObj.question;
+
+  quizQuestion.style.display = 'none';
+  quizOptions.innerHTML = '';
+  quizResult.style.display = 'none';
+
+  if (quizObj.type === 'OX') {
+    ['O', 'X'].forEach(opt => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.addEventListener('click', () => submitRoundQuiz(quizObj, opt, stage));
+      quizOptions.appendChild(btn);
+    });
+  } else {
+    quizObj.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.addEventListener('click', () => submitRoundQuiz(quizObj, idx, stage));
+      quizOptions.appendChild(btn);
+    });
+  }
+}
+
+function submitRoundQuiz(quiz, selected, stage) {
+  const isCorrect = (quiz.answer === selected);
+  quizOptions.innerHTML = '';
+  quizResult.style.display = 'block';
+
+  if (isCorrect) {
+    // 맞췄을 때 힌트를 획득할 회사 선택하게 함
+    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">정답입니다!</span><br>${quiz.explain}<br><br><strong>힌트를 열람할 추가 회사를 선택하세요:</strong>`;
+    
+    // 아직 고르지 않은 회사 필터링
+    window.COMPANIES.forEach(c => {
+      if (!selectedCompanyIdsForQuiz.includes(c.id)) {
+        const btn = document.createElement('button');
+        btn.textContent = c.name;
+        btn.style.margin = '5px';
+        btn.addEventListener('click', () => {
+          const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
+          const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
+          selectedHints.push({ companyName: c.name, hint: rawHint });
+          selectedCompanyIdsForQuiz.push(c.id);
+
+          if (stage === 1) {
+            startHintQuizStage(2);
+          } else {
+            showFinalQuizHintsSummary();
+          }
+        });
+        quizExplain.appendChild(btn);
+      }
+    });
+  } else {
+    // 틀렸을 경우 즉시 퀴즈 종료 (더 이상 퀴즈 기회 없음)
+    quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">오답입니다.</span> (정답: ${quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer]})<br>${quiz.explain}`;
+    
+    const finishBtn = document.createElement('button');
+    finishBtn.textContent = '획득한 힌트 확인하기';
+    finishBtn.style.marginTop = '15px';
+    finishBtn.addEventListener('click', () => {
+      showFinalQuizHintsSummary();
+    });
+    quizExplain.appendChild(finishBtn);
+  }
+}
+
+function showFinalQuizHintsSummary() {
+  document.getElementById('quiz-modal-title').textContent = '💡 획득한 독점 힌트 목록';
+  document.getElementById('quiz-modal-desc').textContent = '이번 라운드에 수집한 정보들입니다.';
+  quizOptions.innerHTML = '';
+  quizQuestion.style.display = 'none';
+  quizResult.style.display = 'block';
+
+  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:10px; text-align:left;">';
+  selectedHints.forEach((sh, idx) => {
+    summaryHtml += `
+      <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:8px; border-left:4px solid var(--accent);">
+        <strong>[${sh.companyName}] 힌트:</strong>
+        <p style="margin-top:5px; color:#60a5fa;">${sh.hint}</p>
+      </div>
+    `;
+  });
+  summaryHtml += '</div>';
+
+  quizExplain.innerHTML = summaryHtml;
+  closeQuizBtn.style.display = 'block';
+  closeQuizBtn.textContent = '확인 (거래 개시)';
+  viewHintBtn.style.display = 'inline-block';
+}
+
+viewHintBtn.addEventListener('click', () => {
+  showFinalQuizHintsSummary();
+  closeQuizBtn.textContent = '닫기';
+  quizModal.style.display = 'flex';
+});
+
+closeQuizBtn.addEventListener('click', () => {
+  quizModal.style.display = 'none';
+});
+
+// 지나간 긴급속보 보기 버튼 및 팝업 연동
+const viewPastNewsBtn = document.getElementById('view-past-news-btn');
+const pastNewsModal = document.getElementById('past-news-modal');
+const pastNewsList = document.getElementById('past-news-list');
+
+viewPastNewsBtn.addEventListener('click', () => {
+  pastNewsList.innerHTML = '';
+  if (pastBreakingNews.length === 0) {
+    pastNewsList.innerHTML = '<span style="color:var(--text-muted);">발생한 긴급속보가 없습니다.</span>';
+  } else {
+    pastBreakingNews.forEach(sch => {
+      const item = document.createElement('div');
+      item.style.padding = '10px';
+      item.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+      item.innerHTML = `
+        <div style="color:var(--danger); font-weight:bold; font-size:0.9rem;">[${sch.timestamp}] 긴급 속보</div>
+        <div style="color:white; margin-top:3px;">${sch.news.text}</div>
+        <div style="color:#fbbf24; font-size:0.85rem; margin-top:2px;">영향: 주가 ${sch.impact > 0 ? "+" : ""}${sch.impact}%</div>
+      `;
+      pastNewsList.appendChild(item);
+    });
+  }
+  pastNewsModal.style.display = 'flex';
+});
+
+// 타이머 및 턴 진행 이벤트들 수신
 socket.on('timerUpdate', (time) => {
   const m = Math.floor(time / 60).toString().padStart(2, '0');
   const s = (time % 60).toString().padStart(2, '0');
   timerDisplay.textContent = `${m}:${s}`;
-  if (time <= 30) {
-    timerDisplay.classList.add('timer-urgent');
+});
+
+// 2라운드 이상 턴 진행 타이머 수신
+socket.on('turnStarted', ({ activePlayerId, turnTimer, turnOrder, activePlayerIndex }) => {
+  // 현재 턴 플레이어 이름 표시
+  const pName = lobbyPlayers.children[activePlayerIndex]?.textContent.split(' ')[0] || '-';
+  activeTurnPlayerEl.textContent = pName + (activePlayerId === myPlayerId ? ' (나)' : '');
+  turnTimerDisplayEl.textContent = turnTimer;
+
+  // 15초 대기 룰에 따라 스킵버튼 제어
+  skipTurnBtn.disabled = true;
+  skipTurnBtn.textContent = '턴 넘기기 (15초 대기)';
+
+  // 본인 턴인 경우 강조
+  if (activePlayerId === myPlayerId) {
+    turnHud.style.borderColor = '#fbbf24';
+    turnHud.style.background = 'rgba(251, 191, 36, 0.1)';
   } else {
-    timerDisplay.classList.remove('timer-urgent');
+    turnHud.style.borderColor = '#3b82f6';
+    turnHud.style.background = 'rgba(59, 130, 246, 0.15)';
   }
+});
 
-  // 라운드 60초 경과 체크 (기본 라운드 시간 180초 중 남은 시간이 120초 초과 시 60초 미만 경과)
-  const roundTime = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.SYSTEM) ? GAME_CONFIG.SYSTEM.ROUND_TIME : 180;
-  const elapsedTime = roundTime - time;
+socket.on('turnTimerUpdate', ({ time, elapsed }) => {
+  turnTimerDisplayEl.textContent = time;
 
-  if (isHost) {
-    // 호스트(방장)는 시간제한이나 타인 투표 여부에 상관없이 즉시 스킵 가능
-    if (hasVotedCurrentRound) {
-      skipRoundBtn.disabled = true;
-      skipRoundBtn.classList.add('voted');
-      skipRoundBtn.textContent = `⏩ 즉시 스킵 진행 중...`;
+  const activeId = activeTurnPlayerEl.textContent.includes('(나)');
+  if (activeId) {
+    if (elapsed < 15) {
+      skipTurnBtn.disabled = true;
+      skipTurnBtn.textContent = `턴 넘기기 (${15 - elapsed}초 대기)`;
     } else {
-      skipRoundBtn.disabled = false;
-      skipRoundBtn.classList.remove('voted');
-      skipRoundBtn.textContent = `⏩ 라운드 즉시 스킵 (방장)`;
+      skipTurnBtn.disabled = false;
+      skipTurnBtn.textContent = '턴 넘기기';
     }
   } else {
-    if (elapsedTime < 60) {
-      const remainSec = 60 - elapsedTime;
-      skipRoundBtn.disabled = true;
-      skipRoundBtn.classList.remove('voted');
-      skipRoundBtn.textContent = `⏳ ${remainSec}초 후 스킵 가능 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
-    } else {
-      if (hasVotedCurrentRound) {
-        skipRoundBtn.disabled = true;
-        skipRoundBtn.classList.add('voted');
-        skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
-      } else {
-        skipRoundBtn.disabled = false;
-        skipRoundBtn.classList.remove('voted');
-        skipRoundBtn.textContent = `⏩ 라운드 스킵 (${skipVotedStatus.votedCount}/${skipVotedStatus.totalCount})`;
-      }
-    }
+    skipTurnBtn.disabled = true;
+    skipTurnBtn.textContent = '턴 대기 중';
   }
+});
+
+skipTurnBtn.addEventListener('click', () => {
+  socket.emit('skipMyTurn', { roomId: currentRoom });
 });
 
 socket.on('updatePlayers', (players) => {
   renderPlayers(players);
-  // 주식 패널 내 보유량 업데이트
+  updateItemsDisplay(players);
+  // 보유 수량 리프레시
   const myData = players.find(p => p.id === myPlayerId);
   if (myData) {
     window.COMPANIES.forEach(c => {
       const shareEl = document.getElementById(`share-${c.id}`);
       if (shareEl) {
-        // 기존의 innerHTML 구조에 맞춰서 수량만 업데이트하거나, 텍스트 업데이트
         const countEl = shareEl.querySelector('.shares-count');
-        if (countEl) {
-          countEl.textContent = `${myData.shares[c.id]}주`;
-        } else {
-          shareEl.textContent = `보유량: ${myData.shares[c.id]}주`;
-        }
+        if (countEl) countEl.textContent = `${myData.shares[c.id]}주`;
       }
     });
   }
 });
 
 socket.on('updateCompanies', (companies) => {
-  // window.COMPANIES 가격 갱신 및 화면 재렌더링
   companies.forEach(c => {
     const target = window.COMPANIES.find(orig => orig.id === c.id);
     if (target) {
       target.basePrice = c.basePrice;
     }
   });
-  // 주식 패널 렌더링 시 플레이어 목록(자산 상태)도 필요하므로 me 상태 기반으로 재랜더링
   if (currentRoom) {
-    renderStocks(companies, [me]);
+    renderStocks(companies, [me], currentRoundNumber);
   }
+});
+
+// 아이템 목록 렌더링 및 사용
+function updateItemsDisplay(players) {
+  const myData = players.find(p => p.id === myPlayerId);
+  if (!myData || !itemsListEl) return;
+
+  itemsListEl.innerHTML = '';
+  if (!myData.items || myData.items.length === 0) {
+    itemsListEl.innerHTML = '<span style="color:var(--text-muted); font-size:0.9rem;">보유한 아이템이 없습니다.</span>';
+    return;
+  }
+
+  myData.items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'glass';
+    div.style.padding = '10px';
+    div.style.borderRadius = '8px';
+    div.style.border = '1px solid #fbbf24';
+    div.style.display = 'flex';
+    div.style.justifyContent = 'space-between';
+    div.style.alignItems = 'center';
+    div.style.gap = '10px';
+
+    div.innerHTML = `
+      <div style="text-align:left;">
+        <strong style="color:#fbbf24;">${item.name}</strong>
+        <p style="font-size:0.8rem; color:#ccc; margin-top:2px;">${item.desc}</p>
+      </div>
+      <button class="use-item-btn btn" data-id="${item.id}" style="padding:6px 12px; font-size:0.8rem; background:#fbbf24; color:black; font-weight:bold; border-radius:4px;">사용</button>
+    `;
+
+    div.querySelector('.use-item-btn').addEventListener('click', () => {
+      triggerItemUsage(item.id);
+    });
+
+    itemsListEl.appendChild(div);
+  });
+}
+
+function triggerItemUsage(itemId) {
+  if (itemId === 'distorted') {
+    // 왜곡된 진실 타겟 선택 모달 오픈
+    const selectP = document.getElementById('item-target-player');
+    selectP.innerHTML = '';
+    
+    // 나를 제외한 플레이어들
+    lobbyPlayers.querySelectorAll('li').forEach((li, idx) => {
+      // lobbyPlayers 순서대로 파싱 또는 소켓 정보 복사
+    });
+
+    // 소켓 데이터를 바탕으로 플레이어 로드
+    // 여기서는 간단하게 select option 구성
+    socket.emit('requestSync', { roomId: currentRoom });
+    
+    // 임시로 prompt 사용 가능하나 모달로 바인딩
+    const playerSelect = document.getElementById('item-target-player');
+    playerSelect.innerHTML = '';
+    me = me || { id: myPlayerId };
+    
+    // server.js updates updateLobby or updatePlayers
+    // players 전역에서 가져와서 select 구성
+    const sortedLi = document.getElementById('lobby-players').querySelectorAll('li');
+    // fallback option
+    const option = document.createElement('option');
+    option.value = myPlayerId;
+    option.textContent = "자기 자신 (또는 테스트)";
+    playerSelect.appendChild(option);
+    
+    document.getElementById('item-use-modal').style.display = 'flex';
+    
+    document.getElementById('confirm-use-item-btn').onclick = () => {
+      const targetPlayerId = playerSelect.value;
+      const targetRound = document.getElementById('item-target-round').value;
+      socket.emit('useItem', {
+        roomId: currentRoom,
+        itemId: 'distorted',
+        targetPlayerId,
+        targetRound
+      });
+      document.getElementById('item-use-modal').style.display = 'none';
+    };
+  } else if (itemId === 'monopoly') {
+    const compName = prompt("독점할 회사의 영문 ID를 적어주세요 (Jswtech, Shcdark, gardensemi, Soap, Parkjubin, Weclass):");
+    if (compName) {
+      socket.emit('useItem', {
+        roomId: currentRoom,
+        itemId: 'monopoly',
+        targetCompanyId: compName
+      });
+    }
+  } else {
+    // 즉각 사용 가능한 아이템들 (인버스권, 레버리지권, 올클리어)
+    if (confirm(`${itemId} 아이템을 즉시 활성화하시겠습니까?`)) {
+      socket.emit('useItem', {
+        roomId: currentRoom,
+        itemId
+      });
+    }
+  }
+}
+
+socket.on('allClearHintsUnlocked', ({ round, scenario }) => {
+  const activeRoundData = scenario.rounds.find(r => r.round === round);
+  let allHintsStr = "🔥 [올 클리어] 이번 라운드 모든 힌트 정보:\n\n";
+  for (let cid in activeRoundData.companyHints) {
+    const cName = window.COMPANIES.find(c => c.id === cid)?.name || cid;
+    allHintsStr += `[${cName}]: ${activeRoundData.companyHints[cid]}\n`;
+  }
+  alert(allHintsStr);
+});
+
+socket.on('systemAlert', (msg) => {
+  alert("🔔 [알림] " + msg);
+});
+
+socket.on('distortedGainedAlert', ({ playerName }) => {
+  alert(`📢 누군가 '왜곡된 진실' 아이템을 획득하였습니다!`);
 });
 
 function renderPlayers(players) {
@@ -371,17 +680,24 @@ function renderPlayers(players) {
   });
 }
 
-function renderStocks(companies, players) {
+function renderStocks(companies, players, roundNum = 1) {
   stocksPanel.innerHTML = '';
   const myData = players.find(p => p.id === myPlayerId) || me;
 
   companies.forEach(c => {
     const div = document.createElement('div');
     div.className = 'stock-card glass';
+
+    // 2라운드부터는 그래프 버튼 표시
+    const graphBtnHtml = roundNum >= 2
+      ? `<button class="single-graph-btn" data-id="${c.id}" style="position:absolute; top:8px; left:8px; background:rgba(0,200,255,0.2); border:1px solid var(--accent); color:var(--accent); font-size:0.85rem; cursor:pointer; padding:2px 6px; border-radius:4px;">📈 추이</button>`
+      : '';
+
     div.innerHTML = `
-      <div>
-        <div class="stock-name">${c.name}</div>
-        <div class="stock-desc">${c.desc}</div>
+      <div style="position:relative; padding-top: 15px;">
+        ${graphBtnHtml}
+        <div class="stock-name" style="margin-left: 20px;">${c.name}</div>
+        <div class="stock-desc" style="margin-left: 20px;">${c.desc}</div>
       </div>
       <div class="stock-price">${formatMoney(c.basePrice)}</div>
       <div class="my-shares-badge" id="share-${c.id}">
@@ -413,342 +729,207 @@ function renderStocks(companies, players) {
       socket.emit('tradeStock', { roomId: currentRoom, companyId: cid, qty: qty, isBuy: false });
     });
   });
-}
 
-// 2단계 연속 퀴즈 및 2개 힌트(hint1, hint2) 해금 시스템
-let currentRoundDataForQuiz = null;
-let currentHint1Text = "";
-let currentHint2Text = "";
-let currentQuizStage = 1; // 1차 퀴즈 or 2차 퀴즈
-let correctQuizCount = 0; // 0개, 1개, 2개 정답
-let currentQuizObj = null;
-
-const quizHint1Box = document.getElementById('quiz-hint1-box');
-const quizHint2Box = document.getElementById('quiz-hint2-box');
-
-function updateHintDisplay() {
-  if (!quizHint1Box || !quizHint2Box) return;
-
-  // 기본 공통 스타일 적용 (텍스트 정렬, 패딩 등)
-  [quizHint1Box, quizHint2Box].forEach(box => {
-    box.style.display = 'flex';
-    box.style.flexDirection = 'column';
-    box.style.justifyContent = 'center';
-    box.style.padding = '18px';
-    box.style.borderRadius = '12px';
-    box.style.border = '2px solid';
-    box.style.textAlign = 'left';
-    box.style.lineHeight = '1.5';
-    box.style.transition = 'all 0.3s ease';
+  // 단일 주식 꺾은선그래프 버튼 핸들러 설정
+  document.querySelectorAll('.single-graph-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const cid = e.target.getAttribute('data-id');
+      openSingleStockTrend(cid);
+    });
   });
-
-  if (correctQuizCount === 0) {
-    // 0개 정답 (둘 다 잠김)
-    quizHint1Box.style.background = '#f8fafc';
-    quizHint1Box.style.borderColor = '#e2e8f0';
-    quizHint1Box.style.color = '#94a3b8';
-    quizHint1Box.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; width:100%;">
-        <span style="font-size:1.8rem; filter: grayscale(1);">🔒</span>
-        <strong style="font-size:1.05rem; color:#64748b;">독점 힌트 1 잠김</strong>
-        <span style="font-size:0.85rem; color:#94a3b8;">오답으로 힌트를 얻지 못했습니다.</span>
-      </div>
-    `;
-
-    quizHint2Box.style.background = '#f8fafc';
-    quizHint2Box.style.borderColor = '#e2e8f0';
-    quizHint2Box.style.color = '#94a3b8';
-    quizHint2Box.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; width:100%;">
-        <span style="font-size:1.8rem; filter: grayscale(1);">🔒</span>
-        <strong style="font-size:1.05rem; color:#64748b;">독점 힌트 2 잠김</strong>
-        <span style="font-size:0.85rem; color:#94a3b8;">오답으로 힌트를 얻지 못했습니다.</span>
-      </div>
-    `;
-  } else if (correctQuizCount === 1) {
-    // 1개 정답 (힌트 1 해금, 힌트 2 잠김)
-    quizHint1Box.style.background = '#eff6ff';
-    quizHint1Box.style.borderColor = '#3b82f6';
-    quizHint1Box.style.color = '#1e3a8a';
-    quizHint1Box.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <span style="font-size:0.8rem; background:#3b82f6; color:#ffffff; padding:2px 8px; border-radius:20px; width:fit-content; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">💡 힌트 1 해금</span>
-        <strong style="font-size:1.05rem; color:#1d4ed8; margin-top:2px;">애매한 독점 정보</strong>
-        <p style="font-size:0.9rem; font-weight:600; line-height:1.6; color:#1e40af; margin-top:4px;">${currentHint1Text || "정보가 없습니다."}</p>
-      </div>
-    `;
-
-    quizHint2Box.style.background = '#fffbeb';
-    quizHint2Box.style.borderColor = '#fcd34d';
-    quizHint2Box.style.color = '#78350f';
-    quizHint2Box.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; width:100%;">
-        <span style="font-size:1.8rem;">🔒</span>
-        <strong style="font-size:1.05rem; color:#b45309;">독점 힌트 2 잠김</strong>
-        <span style="font-size:0.85rem; color:#d97706; font-weight:600;">2차 퀴즈까지 맞춰야<br>고급 정보가 열립니다!</span>
-      </div>
-    `;
-  } else if (correctQuizCount >= 2) {
-    // 2개 정답 (둘 다 해금)
-    quizHint1Box.style.background = '#eff6ff';
-    quizHint1Box.style.borderColor = '#3b82f6';
-    quizHint1Box.style.color = '#1e3a8a';
-    quizHint1Box.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <span style="font-size:0.8rem; background:#3b82f6; color:#ffffff; padding:2px 8px; border-radius:20px; width:fit-content; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">💡 힌트 1 해금</span>
-        <strong style="font-size:1.05rem; color:#1d4ed8; margin-top:2px;">애매한 독점 정보</strong>
-        <p style="font-size:0.9rem; font-weight:600; line-height:1.6; color:#1e40af; margin-top:4px;">${currentHint1Text || "정보가 없습니다."}</p>
-      </div>
-    `;
-
-    quizHint2Box.style.background = '#ecfdf5';
-    quizHint2Box.style.borderColor = '#10b981';
-    quizHint2Box.style.color = '#064e3b';
-    quizHint2Box.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <span style="font-size:0.8rem; background:#10b981; color:#ffffff; padding:2px 8px; border-radius:20px; width:fit-content; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">🔥 힌트 2 해금</span>
-        <strong style="font-size:1.05rem; color:#047857; margin-top:2px;">분명한 독점 정보</strong>
-        <p style="font-size:0.9rem; font-weight:600; line-height:1.6; color:#065f46; margin-top:4px;">${currentHint2Text || "정보가 없습니다."}</p>
-      </div>
-    `;
-  }
 }
 
-viewHintBtn.addEventListener('click', () => {
-  document.getElementById('quiz-modal-title').textContent = '💡 입수한 독점 힌트 다시 보기';
-  document.getElementById('quiz-modal-desc').style.display = 'none';
-  document.getElementById('quiz-question-container').style.display = 'none';
+// 단일 주가 꺾은선그래프 모달 띄우기
+function openSingleStockTrend(companyId) {
+  const comp = window.COMPANIES.find(c => c.id === companyId);
+  if (!comp) return;
 
-  quizResult.style.display = 'block';
-  quizExplain.innerHTML = '';
-  updateHintDisplay();
+  document.getElementById('trend-modal-title').textContent = `📈 [${comp.name}] 주가 라운드별 변동 추이`;
+  document.getElementById('stock-trend-modal').style.display = 'flex';
 
-  closeQuizBtn.style.display = 'inline-block';
-  closeQuizBtn.textContent = '닫기';
-  quizModal.style.display = 'flex';
-});
+  const canvas = document.getElementById('single-stock-canvas');
+  if (singleStockChart) {
+    singleStockChart.destroy();
+  }
 
+  // 꺾은선그래프 그리기
+  const labels = comp.priceHistory ? comp.priceHistory.map((_, i) => `${i}R시작`) : [];
+  const data = comp.priceHistory || [comp.basePrice];
+
+  singleStockChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: `${comp.name} 주가 추이`,
+        data: data,
+        borderColor: '#00c8ff',
+        backgroundColor: 'rgba(0, 200, 255, 0.1)',
+        borderWidth: 3,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          grid: {
+            color: 'rgba(255,255,255,0.08)'
+          },
+          ticks: {
+            color: '#cbd5e1'
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#cbd5e1'
+          }
+        }
+      }
+    }
+  });
+}
+
+// 2라운드 미니게임 모달
 const minigameModal = document.getElementById('minigame-modal');
 const minigameIframe = document.getElementById('minigame-iframe');
 
 function showMiniGameModal(data) {
-  if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
-  currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
-  currentHint2Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint2 || currentRoundDataForQuiz.hint || "") : "";
-
-  correctQuizCount = 0;
   minigameIframe.src = 'yindex.html';
   minigameModal.style.display = 'flex';
 }
 
-// 미니게임 iframe 메시지 리스너
+// 미니게임 완료 결과 리스너
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'MINIGAME_COMPLETE') {
     const score = e.data.score;
-    // 1500점 이상 3000점 미만 힌트 1, 3000점 이상 힌트 2 해금
-    if (score >= 3000) {
-      correctQuizCount = 2;
-    } else if (score >= 1500) {
-      correctQuizCount = 1;
-    } else {
-      correctQuizCount = 0;
+    // 800점 이상 힌트 1, 2000점 이상 힌트 2
+    selectedHints = [];
+    const activeRoundData = currentRoundScenario.rounds.find(r => r.round === 2);
+    
+    if (score >= 2000) {
+      // 힌트 2개 해금
+      const keys = Object.keys(activeRoundData.companyHints);
+      if (keys.length > 0) {
+        selectedHints.push({ companyName: "서휘찬 다크파운드리", hint: activeRoundData.companyHints[keys[0]] });
+      }
+      if (keys.length > 1) {
+        selectedHints.push({ companyName: "정선우 팹리스", hint: activeRoundData.companyHints[keys[1]] });
+      }
+    } else if (score >= 800) {
+      const keys = Object.keys(activeRoundData.companyHints);
+      if (keys.length > 0) {
+        selectedHints.push({ companyName: "서휘찬 다크파운드리", hint: activeRoundData.companyHints[keys[0]] });
+      }
     }
 
-    if (correctQuizCount >= 1) {
+    if (score >= 800) {
       socket.emit('quizSolved', { roomId: currentRoom });
     }
   } else if (e.data && e.data.type === 'MINIGAME_EXIT') {
     minigameModal.style.display = 'none';
-    minigameIframe.src = ''; // 리소스 해제
-
-    if (correctQuizCount >= 1) {
-      viewHintBtn.style.display = 'inline-block';
-    }
-
-    const earnedHintsCount = correctQuizCount;
-    let resultMsg = `반도체 불량 검사 결과: ${e.data.score.toLocaleString()}점 (등급 ${e.data.grade})을 획득하였습니다!\n`;
-    if (earnedHintsCount === 2) {
-      resultMsg += `🎉 최고 점수로 독점 힌트 1 & 2가 모두 해금되었습니다!`;
-    } else if (earnedHintsCount === 1) {
-      resultMsg += `💡 힌트 1(애매한 힌트)이 해금되었습니다!\n(힌트 2를 얻으려면 3,000점 이상 필요)`;
-    } else {
-      resultMsg += `❌ 점수 미달(1500점 미만)로 힌트를 획득하지 못했습니다.`;
-    }
-    alert(resultMsg);
+    minigameIframe.src = '';
+    showFinalQuizHintsSummary();
+    closeQuizBtn.textContent = '확인';
+  } else if (e.data && e.data.type === 'DRILL_GAME_COMPLETE') {
+    // 드릴 게임 완료 점수 전송
+    const drillModal = document.getElementById('drillgame-modal');
+    drillModal.style.display = 'none';
+    document.getElementById('drillgame-iframe').src = '';
+    
+    socket.emit('drillGameFinished', {
+      roomId: currentRoom,
+      score: e.data.score
+    });
   }
 });
 
-function showQuizModal(data) {
-  if (data.scenario) currentRoundDataForQuiz = data.scenario.rounds.find(r => r.round === data.round);
-  currentHint1Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint1 || currentRoundDataForQuiz.hint || "") : "";
-  currentHint2Text = currentRoundDataForQuiz ? (currentRoundDataForQuiz.hint2 || currentRoundDataForQuiz.hint || "") : "";
-
-  currentQuizStage = 1;
-  correctQuizCount = 0;
-
-  if (data.round === 2) {
-    showMiniGameModal(data);
-  } else {
-    renderQuizStage(1);
-    quizModal.style.display = 'flex';
-  }
-}
-
-let firstQuizId = null;
-
-function renderQuizStage(stage) {
-  currentQuizStage = stage;
+// 3라운드 드릴 미니게임 이벤트 리스너
+socket.on('startDrillGame', () => {
+  const drillModal = document.getElementById('drillgame-modal');
+  const drillIframe = document.getElementById('drillgame-iframe');
   
-  // 1차 퀴즈 문제와 2차 퀴즈 문제가 중복되지 않도록 무작위 추출
-  let qCandidates = window.QUIZ_BANK;
-  if (stage === 2 && firstQuizId !== null) {
-    qCandidates = window.QUIZ_BANK.filter(q => q.id !== firstQuizId);
-  }
-
-  const qIdx = Math.floor(Math.random() * qCandidates.length);
-  currentQuizObj = qCandidates[qIdx];
-  if (stage === 1) firstQuizId = currentQuizObj.id;
-
-  const stageBadgeText = stage === 1 ? '📝 [퀴즈 1/2] 반도체 상식 (1차 도전)' : '🔥 [퀴즈 2/2] 최종 힌트 해금 도전! (2차)';
-  document.getElementById('quiz-modal-title').innerHTML = `<span class="quiz-step-badge">${stageBadgeText}</span><br>라운드 퀴즈`;
-  document.getElementById('quiz-modal-desc').style.display = 'block';
-  document.getElementById('quiz-modal-desc').textContent = stage === 1 ? 
-    '1차 퀴즈를 맞추면 힌트 1(애매한 힌트)이 해금되며 2차 퀴즈에 도전할 수 있습니다!' :
-    '2차 퀴즈까지 정답을 맞추면 힌트 2(분명한 힌트)까지 추가 해금됩니다!';
-
-  document.getElementById('quiz-question-container').style.display = 'block';
-  document.getElementById('quiz-question').style.display = 'block';
-  quizQuestion.textContent = currentQuizObj.question;
-
-  quizOptions.innerHTML = '';
-  quizResult.style.display = 'none';
-  if (quizHint1Box) quizHint1Box.style.display = 'none';
-  if (quizHint2Box) quizHint2Box.style.display = 'none';
-  closeQuizBtn.style.display = 'none';
-
-  if (currentQuizObj.type === 'OX') {
-    ['O', 'X'].forEach(opt => {
-      const btn = document.createElement('button');
-      btn.textContent = opt;
-      btn.addEventListener('click', () => submitQuiz(currentQuizObj, opt));
-      quizOptions.appendChild(btn);
-    });
-  } else {
-    currentQuizObj.options.forEach((opt, idx) => {
-      const btn = document.createElement('button');
-      btn.textContent = opt;
-      btn.addEventListener('click', () => submitQuiz(currentQuizObj, idx));
-      quizOptions.appendChild(btn);
-    });
-  }
-}
-
-function submitQuiz(quiz, selected) {
-  quizOptions.innerHTML = '';
-  quizResult.style.display = 'block';
-
-  document.getElementById('quiz-modal-title').textContent = '퀴즈 결과';
-  document.getElementById('quiz-modal-desc').style.display = 'none';
-  document.getElementById('quiz-question').style.display = 'none';
-
-  const isCorrect = (quiz.answer === selected);
-
-  if (currentQuizStage === 1) {
-    if (isCorrect) {
-      correctQuizCount = 1;
-      socket.emit('quizSolved', { roomId: currentRoom });
-      
-      quizExplain.innerHTML = `
-        <div style="color:var(--success); font-weight:bold; font-size:1.15rem; margin-bottom:8px;">
-          🎉 1차 퀴즈 정답입니다! [힌트 1 (애매한 힌트)] 해금 완료!
-        </div>
-        <div>${quiz.explain}</div>
-        <button id="next-quiz-btn" style="margin-top:16px; background:var(--accent); color:#ffffff; padding:12px 20px; font-size:1rem; font-weight:bold; border-radius:10px; cursor:pointer;">
-          🔥 2차 퀴즈 도전하고 힌트 2까지 얻기 ➔
-        </button>
-      `;
-
-      updateHintDisplay();
-      closeQuizBtn.style.display = 'inline-block';
-      closeQuizBtn.textContent = '닫기 및 힌트 1만 가져가기';
-      viewHintBtn.style.display = 'inline-block';
-
-      document.getElementById('next-quiz-btn').addEventListener('click', () => {
-        renderQuizStage(2);
-      });
-
-    } else {
-      correctQuizCount = 0;
-      let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
-      quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">1차 퀴즈 오답입니다.</span> (정답: ${corrAns})<br>${quiz.explain}`;
-      updateHintDisplay();
-      closeQuizBtn.style.display = 'inline-block';
-      closeQuizBtn.textContent = '확인';
-    }
-  } else if (currentQuizStage === 2) {
-    if (isCorrect) {
-      correctQuizCount = 2;
-      quizExplain.innerHTML = `
-        <div style="color:var(--success); font-weight:bold; font-size:1.15rem; margin-bottom:8px;">
-          🏆 2차 퀴즈까지 모두 정답! [힌트 2 (분명한 힌트)] 최종 해금 완료!
-        </div>
-        <div>${quiz.explain}</div>
-      `;
-      updateHintDisplay();
-      closeQuizBtn.style.display = 'inline-block';
-      closeQuizBtn.textContent = '확인';
-      viewHintBtn.style.display = 'inline-block';
-    } else {
-      correctQuizCount = 1;
-      let corrAns = quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer];
-      quizExplain.innerHTML = `
-        <div style="color:var(--danger); font-weight:bold; font-size:1.15rem; margin-bottom:8px;">
-          2차 퀴즈 오답입니다. (정답: ${corrAns})
-        </div>
-        <div>1차 퀴즈 정답 보상인 [힌트 1]만 제공됩니다.</div>
-        <div style="margin-top:6px;">${quiz.explain}</div>
-      `;
-      updateHintDisplay();
-      closeQuizBtn.style.display = 'inline-block';
-      closeQuizBtn.textContent = '확인';
-      viewHintBtn.style.display = 'inline-block';
-    }
-  }
-}
-
-closeQuizBtn.addEventListener('click', () => {
-  quizModal.style.display = 'none';
+  drillIframe.src = 'drill.html';
+  drillModal.style.display = 'flex';
 });
 
-// Chart.js 꺾은선 그래프 렌더링
+// 드릴 게임 승자 소식
+socket.on('drillGameWinner', ({ winnerName, score, itemName }) => {
+  alert(`🏆 드릴 미션 완료!\n최고 유사율 득점자: ${winnerName} (${score}%)\n보상으로 [${itemName}]을 획득하였습니다!`);
+});
+
+// 랜덤박스 오픈 처리
+const randomboxModal = document.getElementById('randombox-modal');
+const openBoxBtn = document.getElementById('open-box-btn');
+const boxAnimationArea = document.getElementById('box-animation-area');
+const rolledItemResult = document.getElementById('rolled-item-result');
+const rolledItemName = document.getElementById('rolled-item-name');
+const rolledItemDesc = document.getElementById('rolled-item-desc');
+
+socket.on('randomBoxRolled', ({ rolls, players }) => {
+  const myItem = rolls[myPlayerId];
+  if (!myItem) return;
+
+  rolledItemResult.style.display = 'none';
+  boxAnimationArea.textContent = '📦';
+  boxAnimationArea.style.animation = 'pulse 1.5s infinite';
+  openBoxBtn.style.display = 'block';
+
+  randomboxModal.style.display = 'flex';
+
+  openBoxBtn.onclick = () => {
+    // 상자 오픈 애니메이션 연출
+    boxAnimationArea.textContent = '✨🎁✨';
+    boxAnimationArea.style.animation = 'none';
+    openBoxBtn.style.display = 'none';
+    
+    rolledItemName.textContent = myItem.name;
+    rolledItemDesc.textContent = myItem.desc;
+    rolledItemResult.style.display = 'block';
+
+    // 확인 버튼 생성
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn';
+    confirmBtn.style.width = '100%';
+    confirmBtn.style.marginTop = '15px';
+    confirmBtn.textContent = '아이템 보관함 확인';
+    confirmBtn.onclick = () => {
+      randomboxModal.style.display = 'none';
+      confirmBtn.remove();
+      socket.emit('requestSync', { roomId: currentRoom });
+    };
+    rolledItemResult.appendChild(confirmBtn);
+  };
+});
+
+// Chart.js 라운드 결과 그래프
 let stockChart = null;
 
 const CHART_COLORS = [
-  { border: '#2563eb', bg: 'rgba(37, 99, 235, 0.15)' },  // 파랑 (삼성전자 등)
-  { border: '#dc2626', bg: 'rgba(220, 38, 38, 0.15)' },  // 빨강 (SK하이닉스 등)
-  { border: '#16a34a', bg: 'rgba(22, 163, 74, 0.15)' },  // 초록 (TSMC 등)
-  { border: '#d97706', bg: 'rgba(217, 119, 6, 0.15)' },  // 주황 (엔비디아 등)
-  { border: '#7c3aed', bg: 'rgba(124, 58, 237, 0.15)' }, // 보라 (ASML 등)
-  { border: '#0891b2', bg: 'rgba(8, 145, 178, 0.15)' }   // 청록 (Intel 등)
+  { border: '#2563eb', bg: 'rgba(37, 99, 235, 0.15)' },
+  { border: '#dc2626', bg: 'rgba(220, 38, 38, 0.15)' },
+  { border: '#16a34a', bg: 'rgba(22, 163, 74, 0.15)' },
+  { border: '#d97706', bg: 'rgba(217, 119, 6, 0.15)' },
+  { border: '#7c3aed', bg: 'rgba(124, 58, 237, 0.15)' },
+  { border: '#0891b2', bg: 'rgba(8, 145, 178, 0.15)' }
 ];
 
 function renderStockChart(companies, changes) {
   const ctx = document.getElementById('stock-chart-canvas');
   if (!ctx) return;
 
-  if (stockChart) {
-    stockChart.destroy();
-  }
+  if (stockChart) stockChart.destroy();
 
   const defaultChanges = changes || {};
-
   const datasets = [{
     label: '주가 변동률 (%)',
     data: companies.map(c => defaultChanges[c.id] || 0),
-    backgroundColor: companies.map((c, idx) => {
-      const val = defaultChanges[c.id] || 0;
-      return CHART_COLORS[idx % CHART_COLORS.length].border;
-    }),
+    backgroundColor: companies.map((c, idx) => CHART_COLORS[idx % CHART_COLORS.length].border),
     borderColor: companies.map((c, idx) => CHART_COLORS[idx % CHART_COLORS.length].border),
     borderWidth: 1,
     borderRadius: 8,
@@ -765,9 +946,7 @@ function renderStockChart(companies, changes) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: false
-        },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: function(context) {
@@ -780,31 +959,16 @@ function renderStockChart(companies, changes) {
       },
       scales: {
         x: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            color: '#94a3b8',
-            font: {
-              family: 'Pretendard',
-              size: 12,
-              weight: 'bold'
-            }
-          }
+          grid: { display: false },
+          ticks: { color: '#94a3b8', font: { family: 'Pretendard', size: 12, weight: 'bold' } }
         },
         y: {
-          grid: {
-            color: 'rgba(255, 255, 255, 0.08)'
-          },
+          grid: { color: 'rgba(255, 255, 255, 0.08)' },
           ticks: {
             color: '#94a3b8',
-            font: {
-              family: 'Pretendard',
-              size: 11
-            },
+            font: { family: 'Pretendard', size: 11 },
             callback: function(value) {
-              const sign = value > 0 ? '+' : '';
-              return `${sign}${value}%`;
+              return `${value > 0 ? '+' : ''}${value}%`;
             }
           }
         }
@@ -813,7 +977,6 @@ function renderStockChart(companies, changes) {
   });
 }
 
-// 차트 양 옆 인물 GIF 카운터 및 렌더링
 function renderCharacterGifs(companies, changes) {
   const leftPanel = document.getElementById('chart-left-characters');
   const rightPanel = document.getElementById('chart-right-characters');
@@ -823,7 +986,7 @@ function renderCharacterGifs(companies, changes) {
   leftPanel.innerHTML = '';
   rightPanel.innerHTML = '';
 
-  const leftCompanyIds = ['jswtech', 'shcdark', 'lhysemi'];
+  const leftCompanyIds = ['jswtech', 'shcdark', 'gardensemi'];
 
   companies.forEach(c => {
     const cidLower = (c.id || '').toLowerCase();
@@ -859,20 +1022,31 @@ socket.on('roundEnded', (data) => {
   gameScreen.style.display = 'none';
   resultScreen.style.display = 'block';
 
+  // 긴급속보 보관
+  if (data.pastBreakingNews) pastBreakingNews = data.pastBreakingNews;
+
   document.getElementById('result-title').textContent = `Round ${data.round} 결과`;
 
   let changeHtml = '';
   data.companies.forEach(c => {
     const pct = data.changes[c.id] || 0;
-    const oldPrice = Math.floor(c.basePrice / (1 + pct / 100)); // 역산
+    const oldPrice = Math.floor(c.basePrice / (1 + pct / 100));
     const colorClass = pct > 0 ? 'price-up' : (pct < 0 ? 'price-down' : '');
     const sign = pct > 0 ? '+' : '';
     changeHtml += `<div><strong>${c.name}:</strong> <span class="${colorClass}">${formatMoney(oldPrice)} ➔ ${formatMoney(c.basePrice)} (${sign}${pct}%)</span></div>`;
   });
   document.getElementById('result-stock-changes').innerHTML = changeHtml;
 
-  // 라운드 종료 시 주식 6개 가격 꺾은선 그래프 및 양 옆 인물 GIF 렌더링
   if (data.companies) {
+    // 꺾은선그래프용 주가 히스토리 갱신
+    data.companies.forEach(c => {
+      const localC = window.COMPANIES.find(lc => lc.id === c.id);
+      if (localC) {
+        if (!localC.priceHistory) localC.priceHistory = [localC.basePrice];
+        localC.priceHistory.push(c.basePrice);
+      }
+    });
+
     renderStockChart(data.companies, data.changes);
     renderCharacterGifs(data.companies, data.changes);
   }
@@ -901,12 +1075,12 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
   document.getElementById('host-next-round-controls').style.display = 'none';
 });
 
-// 최종 게임 오버
-socket.on('gameOver', (players) => {
+// 최종 게임 종료
+socket.on('gameOver', ({ players, overallRankings }) => {
   gameScreen.style.display = 'none';
   resultScreen.style.display = 'block';
 
-  localStorage.removeItem('roomId'); // 게임 종료 시 세션 삭제
+  localStorage.removeItem('roomId');
 
   document.getElementById('result-title').textContent = `🎉 게임 종료! 최종 랭킹 🎉`;
   document.getElementById('result-stock-changes').innerHTML = '';
@@ -923,37 +1097,54 @@ socket.on('gameOver', (players) => {
     li.innerHTML = `<span>${idx === 0 ? '🏆 ' : ''}${idx + 1}위: ${p.name}</span> <span>${formatMoney(p.totalAsset)}</span>`;
     rankingList.appendChild(li);
   });
+
+  // 누적 랭킹 리스트 출력
+  if (overallRankings) {
+    allOverallRankings = overallRankings;
+  }
+  
+  showOverallRankingsModal();
 });
 
-// 스킵 버튼 클릭 이벤트
+function showOverallRankingsModal() {
+  const tbody = document.getElementById('overall-rankings-body');
+  tbody.innerHTML = '';
+  allOverallRankings.forEach((r, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding: 10px 5px;">${idx + 1}위</td>
+      <td style="padding: 10px 5px; font-weight:bold;">${r.name}</td>
+      <td style="padding: 10px 5px; color:#10b981;">${formatMoney(r.totalAsset)}</td>
+      <td style="padding: 10px 5px; color:#aaa; font-size:0.85rem;">${r.date}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('overall-rankings-modal').style.display = 'flex';
+}
+
+// 1라운드 스킵 투표 버튼 클릭 이벤트
 skipRoundBtn.addEventListener('click', () => {
   if (skipRoundBtn.disabled || hasVotedCurrentRound) return;
-  
   socket.emit('voteSkip', { roomId: currentRoom });
   hasVotedCurrentRound = true;
   skipRoundBtn.classList.add('voted');
   skipRoundBtn.disabled = true;
 });
 
-// 스킵 현황 업데이트 수신
 socket.on('skipStatusUpdated', ({ votedCount, totalCount }) => {
   skipVotedStatus = { votedCount, totalCount };
 });
 
-// 라운드 스킵 완료 알림 및 8초 자동 카운트다운 시작
 socket.on('roundSkipped', ({ nextRoundIn }) => {
-  // 결과 화면의 컨트롤 숨김 처리 (자동으로 넘어가므로 불필요)
   document.getElementById('host-next-round-controls').style.display = 'none';
   document.getElementById('guest-next-round-waiting').style.display = 'none';
-  
   const noticeEl = document.getElementById('auto-next-round-notice');
   const timerEl = document.getElementById('auto-next-timer');
-  
   noticeEl.style.display = 'block';
-  
+
   let timeLeft = nextRoundIn;
   timerEl.textContent = timeLeft;
-  
+
   if (skipCountdownInterval) clearInterval(skipCountdownInterval);
   skipCountdownInterval = setInterval(() => {
     timeLeft--;
@@ -966,20 +1157,16 @@ socket.on('roundSkipped', ({ nextRoundIn }) => {
   }, 1000);
 });
 
-
-// News Banner Container
+// 긴급속보
 const newsBannerContainer = document.getElementById('news-banner-container');
 
 socket.on('breakingNews', (data) => {
-  // 주가 및 내 자산 갱신
-  renderStocks(data.companies, data.players);
+  renderStocks(data.companies, data.players, currentRoundNumber);
   renderPlayers(data.players);
+  if (data.pastBreakingNews) pastBreakingNews = data.pastBreakingNews;
 
-  // 개별 특보 배너 동적 생성
   const banner = document.createElement('div');
   banner.className = 'news-banner ' + (data.news.type === 'good' ? 'good-news' : 'bad-news');
-  
-  // 인라인 스타일로 개별 배너 배치 최적화 (가로폭 100%, 상대 위치 등)
   banner.style.position = 'relative';
   banner.style.top = 'auto';
   banner.style.left = 'auto';
@@ -997,7 +1184,6 @@ socket.on('breakingNews', (data) => {
 
   newsBannerContainer.appendChild(banner);
 
-  // 7초 후 제거
   setTimeout(() => {
     banner.style.opacity = '0';
     banner.style.transform = 'scale(0.95)';
