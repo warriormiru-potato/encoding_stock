@@ -359,8 +359,8 @@ function showHintSelectionScreen() {
       selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
       selectedCompanyIdsForQuiz.push(c.id);
 
-      // 다음 1차 퀴즈로 진행
-      startHintQuizStage(1);
+      // 퀴즈 및 추가 힌트 해금을 생략하고 즉시 획득한 단일 힌트 요약 화면(거래 개시)으로 진행
+      showFinalQuizHintsSummary();
     });
     quizOptions.appendChild(card);
   });
@@ -451,19 +451,25 @@ function showFinalQuizHintsSummary() {
   quizQuestion.style.display = 'none';
   quizResult.style.display = 'block';
 
+  // 퀴즈 결과 설명 란은 비우거나 확인 문구를 넣음
+  quizExplain.innerHTML = '<div style="margin-bottom: 10px; font-weight: bold; color: var(--success);">퀴즈 완료! 수집된 힌트 리스트:</div>';
+
   // 힌트 가시성 개선: 하얀배경에 검정글씨 보색, 컴퍼니 컬러 보더 강조
-  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:12px; text-align:left;">';
+  const hintBox = document.getElementById('quiz-hint-box');
+  hintBox.style.display = 'block';
+  
+  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:12px; text-align:left; width:100%;">';
   selectedHints.forEach((sh, idx) => {
     summaryHtml += `
       <div style="background:#ffffff; color:#000000; padding:15px; border-radius:10px; border-left:8px solid ${sh.color}; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
-        <strong style="color:${sh.color}; font-size:1.1rem;">[${sh.companyName}] 힌트</strong>
-        <p style="margin-top:8px; line-height: 1.5; font-size:1.05rem; font-weight:600;">${sh.hint}</p>
+        <strong style="color:${sh.color}; font-size:1.1rem; display:block; margin-bottom:5px;">[${sh.companyName}] 힌트</strong>
+        <p style="margin:0; line-height: 1.5; font-size:1.05rem; font-weight:700;">${sh.hint}</p>
       </div>
     `;
   });
   summaryHtml += '</div>';
 
-  quizExplain.innerHTML = summaryHtml;
+  hintBox.innerHTML = summaryHtml;
   closeQuizBtn.style.display = 'block';
   closeQuizBtn.textContent = '확인 (거래 개시)';
   viewHintBtn.style.display = 'inline-block';
@@ -720,6 +726,15 @@ function renderPlayers(players) {
 }
 
 function renderStocks(companies, players, roundNum = 1) {
+  // 현재 입력되어 있는 수량을 먼저 백업해 둠
+  const qtyBackup = {};
+  companies.forEach(c => {
+    const inputEl = document.getElementById(`trade-qty-${c.id}`);
+    if (inputEl) {
+      qtyBackup[c.id] = inputEl.value;
+    }
+  });
+
   stocksPanel.innerHTML = '';
   const myData = players.find(p => p.id === myPlayerId) || me;
 
@@ -731,6 +746,8 @@ function renderStocks(companies, players, roundNum = 1) {
     const graphBtnHtml = roundNum >= 2
       ? `<button class="single-graph-btn" data-id="${c.id}" style="float: right; margin-top: 5px; background: rgba(0,200,255,0.2); border: 1px solid var(--accent); color: var(--text-main); font-size: 0.85rem; cursor: pointer; padding: 4px 8px; border-radius: 6px;">📈 추이</button>`
       : '';
+
+    const savedQty = qtyBackup[c.id] !== undefined ? qtyBackup[c.id] : "1";
 
     div.innerHTML = `
       <div style="position:relative;">
@@ -747,7 +764,7 @@ function renderStocks(companies, players, roundNum = 1) {
       </div>
       <div class="trade-controls">
         <span class="qty-label">주문수량</span>
-        <input type="number" id="trade-qty-${c.id}" value="1" min="1" class="qty-input" />
+        <input type="number" id="trade-qty-${c.id}" value="${savedQty}" min="1" class="qty-input" />
         <button class="btn-buy" data-id="${c.id}">매수</button>
         <button class="btn-danger btn-sell" data-id="${c.id}">매도</button>
       </div>
