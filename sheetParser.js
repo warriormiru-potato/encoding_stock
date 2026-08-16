@@ -155,19 +155,8 @@ async function loadGameData() {
       }
     });
 
-    // firsthint (애매한 힌트) & secondhint (분명한 힌트) 파싱 (fallback 지원)
-    const rawHint = r.hint || "";
-    const hint1 = (r.firsthint && r.firsthint.trim() !== "") ? r.firsthint
-      : (r.hint1 && r.hint1.trim() !== "") ? r.hint1
-        : (rawHint ? rawHint : "힌트 1 정보가 없습니다.");
-    const hint2 = (r.secondhint && r.secondhint.trim() !== "") ? r.secondhint
-      : (r.hint2 && r.hint2.trim() !== "") ? r.hint2
-        : (rawHint ? rawHint : "힌트 2 정보가 없습니다.");
-
     scMap[sId].rounds.push({
       round: parseInt(r.round, 10),
-      hint1: hint1,
-      hint2: hint2,
       companyHints: companyHints,
       changes: changes
     });

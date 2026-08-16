@@ -791,7 +791,7 @@ async function startServer() {
         room.autoSkipTimeout = null;
       }
 
-      if (room.status !== 'result' && room.status !== 'randombox') return;
+      if (room.status !== 'result' && room.status !== 'randombox' && room.status !== 'drillgame') return;
 
       if (room.round === 3 && room.status === 'result') {
         // 3라운드 직후 미니게임 & 랜덤박스 분기

@@ -230,6 +230,7 @@ let skipVotedStatus = { votedCount: 0, totalCount: 0 };
 let hasVotedCurrentRound = false;
 
 function setupRound(data, isReconnect = false) {
+  pushGameState();
   loginScreen.style.display = 'none';
   roomScreen.style.display = 'none';
   resultScreen.style.display = 'none';
@@ -295,6 +296,28 @@ function showHintQuizSystem(data) {
   showHintSelectionScreen();
 }
 
+// 회사별 무지개색 & 서휘찬회사 검정색 고정 맵핑 (corefab, nextmemory, nanodesign, gwangseong, chemicalwave, packagingworld)
+const COMPANY_COLORS = {
+  'corefab': '#000000',
+  'nextmemory': '#ef4444',
+  'nanodesign': '#f97316',
+  'gwangseong': '#22c55e',
+  'chemicalwave': '#3b82f6',
+  'packagingworld': '#8b5cf6'
+};
+
+// 브라우저 뒤로가기 / 새로고침 시 홈화면 이동 복구 및 1인 플레이 편리성 지원
+window.addEventListener('popstate', (event) => {
+  localStorage.removeItem('roomId');
+  window.location.href = '/';
+});
+
+function pushGameState() {
+  if (window.history.state !== 'playing') {
+    window.history.pushState('playing', '', window.location.pathname + '?room=' + (currentRoom || ''));
+  }
+}
+
 function showHintSelectionScreen() {
   document.getElementById('quiz-modal-title').textContent = `💡 라운드 힌트 시작 선택`;
   document.getElementById('quiz-modal-desc').textContent = '라운드를 시작하기 전, 6개 주식 중 힌트를 보고 싶은 회사를 1개 선택하세요!';
@@ -302,37 +325,51 @@ function showHintSelectionScreen() {
   quizQuestion.style.display = 'none';
   quizOptions.innerHTML = '';
   quizResult.style.display = 'none';
-  document.getElementById('quiz-hint1-box').style.display = 'none';
-  document.getElementById('quiz-hint2-box').style.display = 'none';
+  document.getElementById('quiz-hint-box').style.display = 'none';
   closeQuizBtn.style.display = 'none';
   quizModal.style.display = 'flex';
 
+  // 3개 / 3개 중앙 정렬을 위한 컨테이너 클래스 지정
+  quizOptions.className = 'quiz-options hint-cards-container';
+
   window.COMPANIES.forEach(c => {
-    const btn = document.createElement('button');
-    btn.textContent = c.name;
-    btn.style.margin = '8px';
-    btn.addEventListener('click', () => {
+    const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
+    const card = document.createElement('div');
+    card.className = 'hint-card';
+    card.style.borderColor = cardColor;
+    
+    // 카드 내부 구성 (앞면: 선택 유도, 뒷면: 회사이름)
+    card.innerHTML = `
+      <div class="hint-card-inner">
+        <div class="hint-card-front" style="background: rgba(255, 255, 255, 0.05); border: 2px solid ${cardColor};">
+          <span style="font-size: 2rem;">❓</span>
+          <span style="font-size: 0.85rem; margin-top: 5px; color: var(--text-muted);">HINT</span>
+        </div>
+        <div class="hint-card-back" style="background: ${cardColor}; color: ${cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' ? '#ffffff' : '#000000'};">
+          <div class="hint-card-name">${c.name}</div>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
       // 선택한 회사의 힌트 즉시 해금
       const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
       const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
       
-      // 왜곡된 진실 아이템 적용 여부 검사
-      let finalHint = rawHint;
-      if (me && currentRoom) {
-        // server-side에 의해 왜곡 힌트 처리된 경우를 위해 placeholder/복제
-      }
-
-      selectedHints.push({ companyName: c.name, hint: finalHint });
+      selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
       selectedCompanyIdsForQuiz.push(c.id);
 
       // 다음 1차 퀴즈로 진행
       startHintQuizStage(1);
     });
-    quizOptions.appendChild(btn);
+    quizOptions.appendChild(card);
   });
 }
 
 function startHintQuizStage(stage) {
+  // 클래스 복구
+  quizOptions.className = 'quiz-options';
+  
   let qCandidates = window.QUIZ_BANK;
   const qIdx = Math.floor(Math.random() * qCandidates.length);
   const quizObj = qCandidates[qIdx];
@@ -380,7 +417,8 @@ function submitRoundQuiz(quiz, selected, stage) {
         btn.addEventListener('click', () => {
           const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
           const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
-          selectedHints.push({ companyName: c.name, hint: rawHint });
+          const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
+          selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
           selectedCompanyIdsForQuiz.push(c.id);
 
           if (stage === 1) {
@@ -413,12 +451,13 @@ function showFinalQuizHintsSummary() {
   quizQuestion.style.display = 'none';
   quizResult.style.display = 'block';
 
-  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:10px; text-align:left;">';
+  // 힌트 가시성 개선: 하얀배경에 검정글씨 보색, 컴퍼니 컬러 보더 강조
+  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:12px; text-align:left;">';
   selectedHints.forEach((sh, idx) => {
     summaryHtml += `
-      <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:8px; border-left:4px solid var(--accent);">
-        <strong>[${sh.companyName}] 힌트:</strong>
-        <p style="margin-top:5px; color:#60a5fa;">${sh.hint}</p>
+      <div style="background:#ffffff; color:#000000; padding:15px; border-radius:10px; border-left:8px solid ${sh.color}; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+        <strong style="color:${sh.color}; font-size:1.1rem;">[${sh.companyName}] 힌트</strong>
+        <p style="margin-top:8px; line-height: 1.5; font-size:1.05rem; font-weight:600;">${sh.hint}</p>
       </div>
     `;
   });
@@ -430,14 +469,14 @@ function showFinalQuizHintsSummary() {
   viewHintBtn.style.display = 'inline-block';
 }
 
+closeQuizBtn.addEventListener('click', () => {
+  quizModal.style.display = 'none';
+});
+
 viewHintBtn.addEventListener('click', () => {
   showFinalQuizHintsSummary();
   closeQuizBtn.textContent = '닫기';
   quizModal.style.display = 'flex';
-});
-
-closeQuizBtn.addEventListener('click', () => {
-  quizModal.style.display = 'none';
 });
 
 // 지나간 긴급속보 보기 버튼 및 팝업 연동
@@ -688,18 +727,20 @@ function renderStocks(companies, players, roundNum = 1) {
     const div = document.createElement('div');
     div.className = 'stock-card glass';
 
-    // 2라운드부터는 그래프 버튼 표시
+    // 2라운드부터는 현재가 우측 끝에 추이 그래프 버튼 표시
     const graphBtnHtml = roundNum >= 2
-      ? `<button class="single-graph-btn" data-id="${c.id}" style="position:absolute; top:8px; left:8px; background:rgba(0,200,255,0.2); border:1px solid var(--accent); color:var(--accent); font-size:0.85rem; cursor:pointer; padding:2px 6px; border-radius:4px;">📈 추이</button>`
+      ? `<button class="single-graph-btn" data-id="${c.id}" style="float: right; margin-top: 5px; background: rgba(0,200,255,0.2); border: 1px solid var(--accent); color: var(--text-main); font-size: 0.85rem; cursor: pointer; padding: 4px 8px; border-radius: 6px;">📈 추이</button>`
       : '';
 
     div.innerHTML = `
-      <div style="position:relative; padding-top: 15px;">
-        ${graphBtnHtml}
-        <div class="stock-name" style="margin-left: 20px;">${c.name}</div>
-        <div class="stock-desc" style="margin-left: 20px;">${c.desc}</div>
+      <div style="position:relative;">
+        <div class="stock-name">${c.name}</div>
+        <div class="stock-desc">${c.desc}</div>
       </div>
-      <div class="stock-price">${formatMoney(c.basePrice)}</div>
+      <div class="stock-price-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
+        <div class="stock-price" style="margin: 0; font-size: 1.8rem; font-weight: 900;">${formatMoney(c.basePrice)}</div>
+        ${graphBtnHtml}
+      </div>
       <div class="my-shares-badge" id="share-${c.id}">
         <span class="shares-label">보유 수량</span>
         <span class="shares-count">${myData.shares[c.id]}주</span>

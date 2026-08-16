@@ -191,10 +191,9 @@
       <div class="quiz-result" id="quiz-result" style="display:none;">
         <p id="quiz-explain" style="margin-bottom:20px; font-size: 1rem; line-height: 1.6; color: var(--text-main); text-align: left; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1.5px solid #e2e8f0;"></p>
 
-        <!-- 힌트 1 (애매한 힌트) & 힌트 2 (분명한 힌트) 가로 배치 출력 영역 -->
+        <!-- 단일 힌트 출력 영역 -->
         <div class="quiz-hints-container" style="display: flex; gap: 15px; margin-bottom: 20px; width: 100%; align-items: stretch;">
-          <div id="quiz-hint1-box" class="hint-box" style="flex: 1; margin-top: 0; min-height: 140px;"></div>
-          <div id="quiz-hint2-box" class="hint-box" style="flex: 1; margin-top: 0; min-height: 140px;"></div>
+          <div id="quiz-hint-box" class="hint-box" style="flex: 1; margin-top: 0; min-height: 140px; display: none;"></div>
         </div>
 
         <button id="close-quiz-btn" style="margin-top:15px; width:100%;">확인</button>
@@ -208,7 +207,7 @@
       <h3 style="color:#39ff14; margin-bottom: 5px;">🔍 2라운드 미션: 반도체 불량품 검사 시뮬레이터</h3>
       <p style="color:var(--text-muted); font-size: 0.95rem; margin-bottom: 10px;">
         12개 칩 중 숨은 불량 칩을 정확하고 빠르게 클릭해 찾으세요! 
-        <strong>[획득 조건]</strong> 점수 800점 이상: 힌트 1 해금 | 점수 2000점 이상: 힌트 2 전체 해금!
+        <strong>[획득 조건]</strong> 점수 800점 이상: 서휘찬 다크파운드리 힌트 해금 | 점수 2000점 이상: 추가 회사 힌트 전체 해금!
       </p>
       <iframe id="minigame-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 12px; background: #050a14;"></iframe>
     </div>
