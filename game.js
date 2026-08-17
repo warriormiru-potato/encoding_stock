@@ -1138,17 +1138,71 @@ socket.on('randomBoxRolled', ({ rolls, players }) => {
     confirmBtn.className = 'btn';
     confirmBtn.style.width = '100%';
     confirmBtn.style.marginTop = '15px';
-    confirmBtn.textContent = '확인 (4라운드 진행)';
-    confirmBtn.onclick = () => {
-      randomboxModal.style.display = 'none';
-      confirmBtn.remove();
-      if (isHost) {
-        socket.emit('nextRound', { roomId: currentRoom });
-      }
-    };
+    
+    if (myItem.id === 'distorted') {
+      confirmBtn.textContent = '🌀 왜곡 대상 설정하기 (필수)';
+      confirmBtn.style.background = '#8b5cf6';
+      confirmBtn.onclick = () => {
+        randomboxModal.style.display = 'none';
+        confirmBtn.remove();
+        openDistortedTruthSetup(players);
+      };
+    } else {
+      confirmBtn.textContent = '확인 (4라운드 진행)';
+      confirmBtn.onclick = () => {
+        randomboxModal.style.display = 'none';
+        confirmBtn.remove();
+        if (isHost) {
+          socket.emit('nextRound', { roomId: currentRoom });
+        }
+      };
+    }
     rolledItemResult.appendChild(confirmBtn);
   };
 });
+
+function openDistortedTruthSetup(playersList) {
+  const modal = document.getElementById('item-use-modal');
+  const playerSelect = document.getElementById('item-target-player');
+  playerSelect.innerHTML = '';
+
+  const candidates = (playersList && playersList.length > 0) ? playersList : (window.allPlayers || []);
+  
+  if (candidates.length > 0) {
+    candidates.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name + (p.id === myPlayerId ? ' (나)' : '');
+      playerSelect.appendChild(opt);
+    });
+  } else {
+    const opt = document.createElement('option');
+    opt.value = myPlayerId;
+    opt.textContent = "테스트 플레이어";
+    playerSelect.appendChild(opt);
+  }
+
+  modal.style.display = 'flex';
+
+  document.getElementById('confirm-use-item-btn').onclick = () => {
+    const targetPlayerId = playerSelect.value;
+    const targetRound = document.getElementById('item-target-round').value;
+
+    socket.emit('useItem', {
+      roomId: currentRoom,
+      itemId: 'distorted',
+      targetPlayerId,
+      targetRound
+    });
+
+    modal.style.display = 'none';
+
+    // 설정 완료 후 호스트가 다음 라운드 진행
+    if (isHost) {
+      socket.emit('nextRound', { roomId: currentRoom });
+    }
+  };
+}
 
 // Chart.js 라운드 결과 그래프
 let stockChart = null;

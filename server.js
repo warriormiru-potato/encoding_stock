@@ -514,8 +514,9 @@ async function startServer() {
     // 아이템 사용 처리
     socket.on('useItem', ({ roomId, itemId, targetCompanyId, targetPlayerId, targetRound }) => {
       const room = rooms[roomId];
-      if (!room || room.status !== 'playing') return;
-      if (room.round !== 4) {
+      if (!room) return;
+      if (room.status !== 'playing' && room.status !== 'randombox') return;
+      if (room.status === 'playing' && room.round !== 4) {
         socket.emit('errorMsg', '아이템은 4라운드에서만 사용 가능합니다.');
         return;
       }
@@ -877,12 +878,30 @@ async function startServer() {
           c.startPrice = c.basePrice;
         });
 
-        io.to(roomId).emit('roundStarted', {
-          round: room.round,
-          companies: room.companies,
-          players: room.players,
-          scenario: room.scenario
+        // 각 플레이어별 왜곡된 진실(distortedTruths) 적용 여부 확인 후 시나리오 전송
+        room.players.forEach(p => {
+          let playerScenario = JSON.parse(JSON.stringify(room.scenario));
+          const distortion = room.distortedTruths.find(d => d.targetPlayerId === p.id && d.round === room.round);
+          if (distortion) {
+            playerScenario.rounds.forEach(r => {
+              if (r.round === room.round && r.companyHints) {
+                for (let compId in r.companyHints) {
+                  r.companyHints[compId] = invertHintText(r.companyHints[compId]);
+                }
+              }
+            });
+          }
+
+          if (p.socketId) {
+            io.to(p.socketId).emit('roundStarted', {
+              round: room.round,
+              companies: room.companies,
+              players: room.players,
+              scenario: playerScenario
+            });
+          }
         });
+        
         startRoundTimer(roomId);
       }
     }
