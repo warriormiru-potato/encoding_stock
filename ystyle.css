@@ -1,4 +1,4 @@
-/* ===========================
+﻿/* ===========================
    GLOBAL RESET & VARIABLES
    =========================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,7 +16,7 @@
   --chip-defect: #3a1a1a;
   --text-primary: #e8f4ff;
   --text-secondary: #7ab4d4;
-  --hud-height: 80px;
+  --hud-height: 72px;
 }
 
 body {
@@ -24,8 +24,9 @@ body {
   background: var(--bg-dark);
   color: var(--text-primary);
   overflow: hidden;
-  height: 100vh;
+  height: 100dvh;
   width: 100vw;
+  touch-action: manipulation;
 }
 
 /* ===========================
@@ -52,6 +53,7 @@ body {
   pointer-events: none;
   transition: opacity 0.4s ease;
   z-index: 10;
+  overflow-y: auto;
 }
 .screen.active {
   opacity: 1;
@@ -63,14 +65,15 @@ body {
    =========================== */
 .start-content {
   text-align: center;
-  padding: 40px;
+  padding: 32px 24px;
   background: linear-gradient(135deg, rgba(10,22,40,0.95) 0%, rgba(5,10,20,0.98) 100%);
   border: 1px solid rgba(0,200,255,0.3);
-  border-radius: 24px;
+  border-radius: 16px;
   backdrop-filter: blur(20px);
   box-shadow: 0 0 60px rgba(0,200,255,0.15), inset 0 0 40px rgba(0,50,100,0.2);
   max-width: 520px;
-  width: 90vw;
+  width: 94vw;
+  margin: auto;
 }
 
 .logo-badge {
@@ -82,14 +85,14 @@ body {
   font-weight: 700;
   letter-spacing: 3px;
   padding: 5px 16px;
-  border-radius: 20px;
+  border-radius: 4px;
   margin-bottom: 16px;
   text-transform: uppercase;
 }
 
 .game-title {
   font-family: 'Orbitron', monospace;
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 900;
   background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
   -webkit-background-clip: text;
@@ -102,7 +105,7 @@ body {
 .game-subtitle {
   color: var(--text-secondary);
   font-size: 1rem;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   letter-spacing: 2px;
 }
 
@@ -111,21 +114,21 @@ body {
   display: flex;
   justify-content: center;
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 .preview-chip {
   width: 70px;
   height: 70px;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 /* Rules box */
 .rules-box {
   background: rgba(0,200,255,0.05);
   border: 1px solid rgba(0,200,255,0.15);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 28px;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
   text-align: left;
 }
 .rule {
@@ -133,7 +136,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 6px 0;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 .rule:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -145,15 +148,17 @@ body {
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 2px;
-  padding: 14px 48px;
+  padding: 14px 40px;
   border: none;
-  border-radius: 50px;
+  border-radius: 6px;
   background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
   color: #000;
   cursor: pointer;
   transition: all 0.25s ease;
   box-shadow: 0 0 30px rgba(0,200,255,0.4);
   text-transform: uppercase;
+  touch-action: manipulation;
+  min-height: 48px;
 }
 .btn-primary:hover {
   transform: translateY(-3px) scale(1.04);
@@ -168,40 +173,45 @@ body {
   flex-direction: column;
   padding: 0;
   background: radial-gradient(ellipse at center top, rgba(0,50,100,0.2) 0%, transparent 60%);
+  align-items: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* HUD */
 .hud {
-  position: fixed;
+  position: sticky;
   top: 0; left: 0; right: 0;
   height: var(--hud-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
-  background: rgba(5,10,20,0.9);
+  padding: 0 20px;
+  background: rgba(5,10,20,0.95);
   border-bottom: 1px solid rgba(0,200,255,0.2);
   backdrop-filter: blur(10px);
   z-index: 100;
+  width: 100%;
+  flex-shrink: 0;
 }
 .hud-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  min-width: 100px;
+  min-width: 80px;
 }
 .hud-item.center { align-items: center; }
 .hud-item.right { align-items: flex-end; }
 .hud-label {
-  font-size: 0.65rem;
-  letter-spacing: 2px;
+  font-size: 0.6rem;
+  letter-spacing: 1.5px;
   color: var(--text-secondary);
   text-transform: uppercase;
 }
 .hud-value {
   font-family: 'Orbitron', monospace;
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--accent-cyan);
 }
@@ -210,8 +220,8 @@ body {
 /* Timer ring */
 .timer-wrap {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
 }
 .timer-ring {
   width: 100%;
@@ -223,7 +233,7 @@ body {
   fill: none;
   stroke: var(--accent-cyan);
   stroke-width: 4;
-  stroke-linecap: round;
+  stroke-linecap: square;
   stroke-dasharray: 163.36;
   stroke-dashoffset: 0;
   transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
@@ -242,27 +252,28 @@ body {
 
 /* Conveyor */
 .conveyor-container {
-  margin-top: var(--hud-height);
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 16px 10px;
+  padding: 16px 12px 16px;
+  flex: 1;
 }
 .conveyor-label {
-  font-size: 0.75rem;
-  letter-spacing: 2px;
+  font-size: 0.7rem;
+  letter-spacing: 1.5px;
   color: var(--text-secondary);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   text-transform: uppercase;
+  text-align: center;
 }
 .conveyor-belt {
   position: relative;
-  width: min(720px, 95vw);
+  width: min(700px, 98vw);
   background: linear-gradient(180deg, #0d1f33 0%, #081629 100%);
   border: 2px solid rgba(0,200,255,0.25);
-  border-radius: 20px;
-  padding: 28px 24px;
+  border-radius: 12px;
+  padding: 20px 16px;
   box-shadow:
     0 0 40px rgba(0,200,255,0.08),
     inset 0 0 30px rgba(0,0,0,0.4);
@@ -287,12 +298,12 @@ body {
   to   { background-position: 100% 0; }
 }
 
-/* Chip Grid — 4×3 for 12 chips */
+/* Chip Grid ??4횞3 for 12 chips */
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
   position: relative;
   z-index: 2;
 }
@@ -306,7 +317,7 @@ body {
   75%       { transform: translateX(-2px); }
 }
 .chip-grid.shake { animation: gridShake 0.4s ease; }
-/* Urgent pulse when ≤1s left */
+/* Urgent pulse when <=1s left */
 @keyframes urgentPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255,68,68,0); }
   50%      { box-shadow: 0 0 0 6px rgba(255,68,68,0.35); }
@@ -318,13 +329,14 @@ body {
    =========================== */
 .chip {
   aspect-ratio: 1;
-  border-radius: 10px;
+  border-radius: 6px;
   cursor: pointer;
   position: relative;
   transform: scale(0);
   animation: chipAppear 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
+  touch-action: manipulation;
 }
 .chip:hover:not(.clicked):not(.revealed) {
   transform: scale(1.06) translateY(-3px);
@@ -334,11 +346,11 @@ body {
   to { transform: scale(1); }
 }
 
-/* Normal chip look */
+/* Normal chip look - 吏곸꽑 ?꾩븞, 怨≪꽑 ?놁쓬 */
 .chip-body {
   width: 100%;
   height: 100%;
-  border-radius: 10px;
+  border-radius: 6px;
   background: linear-gradient(145deg, #2a5280 0%, #1a3a5f 40%, #0f2540 100%);
   border: 1.5px solid rgba(0,150,220,0.5);
   box-shadow:
@@ -350,52 +362,64 @@ body {
   transition: all 0.2s;
 }
 
-/* Circuit lines on chip surface */
+/* Circuit lines - 吏곸꽑 洹몃━???⑦꽩 (?뺣??? */
 .chip-body::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(0,150,220,0.07) 6px, rgba(0,150,220,0.07) 7px),
-    repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(0,150,220,0.07) 6px, rgba(0,150,220,0.07) 7px);
-  border-radius: 9px;
+    repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(0,150,220,0.1) 8px, rgba(0,150,220,0.1) 9px),
+    repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(0,150,220,0.1) 8px, rgba(0,150,220,0.1) 9px);
+  border-radius: 5px;
 }
 
-/* Chip die (center square) */
+/* Chip die (center square) - ???ш쾶 */
 .chip-die {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 40%;
-  height: 40%;
+  width: 48%;
+  height: 48%;
   background: linear-gradient(135deg, #1a4070, #0d2a4a);
-  border: 1px solid rgba(0,180,255,0.3);
-  border-radius: 3px;
+  border: 1px solid rgba(0,180,255,0.4);
+  border-radius: 2px;
   box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
 }
 
-/* Bond wires (pins on sides) */
+/* 移??ㅼ씠 ?대? ?뚮줈 ?⑦꽩 (吏곸꽑) */
+.chip-die::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background-image:
+    linear-gradient(0deg, transparent 40%, rgba(0,180,255,0.2) 40%, rgba(0,180,255,0.2) 41%, transparent 41%),
+    linear-gradient(90deg, transparent 30%, rgba(0,180,255,0.15) 30%, rgba(0,180,255,0.15) 31%, transparent 31%),
+    linear-gradient(90deg, transparent 60%, rgba(0,180,255,0.15) 60%, rgba(0,180,255,0.15) 61%, transparent 61%);
+  border-radius: 1px;
+}
+
+/* Bond wires (pins on sides) - ??援듦퀬 ?좊챸?섍쾶 */
 .chip-pins {
   position: absolute;
   inset: 0;
 }
 .pin {
   position: absolute;
-  background: rgba(0,180,255,0.4);
+  background: rgba(0,180,255,0.55);
   border-radius: 1px;
 }
 /* top/bottom pins */
-.pin.h { width: 8%; height: 3px; top: 4px; }
-.pin.h.b { top: auto; bottom: 4px; }
-.pin.h:nth-child(1) { left: 15%; }
+.pin.h { width: 9%; height: 4px; top: 3px; }
+.pin.h.b { top: auto; bottom: 3px; }
+.pin.h:nth-child(1) { left: 14%; }
 .pin.h:nth-child(2) { left: 40%; }
 .pin.h:nth-child(3) { left: 65%; }
-.pin.h.b:nth-child(4) { left: 15%; }
+.pin.h.b:nth-child(4) { left: 14%; }
 .pin.h.b:nth-child(5) { left: 40%; }
 .pin.h.b:nth-child(6) { left: 65%; }
 /* left/right pins */
-.pin.v { width: 3px; height: 8%; left: 4px; }
-.pin.v.r { left: auto; right: 4px; }
+.pin.v { width: 4px; height: 9%; left: 3px; }
+.pin.v.r { left: auto; right: 3px; }
 .pin.v:nth-child(7) { top: 20%; }
 .pin.v:nth-child(8) { top: 45%; }
 .pin.v:nth-child(9) { top: 70%; }
@@ -406,8 +430,8 @@ body {
 /* Chip index label */
 .chip-label {
   position: absolute;
-  bottom: 4px;
-  right: 6px;
+  bottom: 3px;
+  right: 5px;
   font-family: 'Orbitron', monospace;
   font-size: 0.45rem;
   color: rgba(0,200,255,0.5);
@@ -418,7 +442,7 @@ body {
    DEFECT TYPES
    =========================== */
 
-/* Type 1: discoloration — MUCH subtler than before */
+/* Type 1: discoloration */
 .chip.defect-discolor .chip-body {
   background: linear-gradient(145deg, #274e28 0%, #1b3820 40%, #0f2215 100%);
   border-color: rgba(60,130,60,0.38);
@@ -426,16 +450,16 @@ body {
 }
 .chip.defect-discolor .chip-body::before {
   background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(60,130,60,0.05) 6px, rgba(60,130,60,0.05) 7px),
-    repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(60,130,60,0.05) 6px, rgba(60,130,60,0.05) 7px);
+    repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(60,130,60,0.07) 8px, rgba(60,130,60,0.07) 9px),
+    repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(60,130,60,0.07) 8px, rgba(60,130,60,0.07) 9px);
 }
 .chip.defect-discolor .chip-die {
   background: linear-gradient(135deg, #1e3c20, #122814);
   border-color: rgba(70,140,50,0.25);
 }
-.chip.defect-discolor .pin { background: rgba(60,130,60,0.35); }
+.chip.defect-discolor .pin { background: rgba(60,130,60,0.45); }
 
-/* Type 2: crack — thinner, subtler */
+/* Type 2: crack ??吏곸꽑 洹좎뿴 */
 .chip.defect-crack .crack-line,
 .chip.defect-scratch .crack-line {
   position: absolute;
@@ -446,48 +470,48 @@ body {
 .crack-svg { width: 100%; height: 100%; }
 .crack-path {
   fill: none;
-  stroke: rgba(0,0,0,0.75);
-  stroke-width: 0.9;   /* was 1.5 — thinner */
+  stroke: rgba(0,0,0,0.8);
+  stroke-width: 1.2;
   filter: drop-shadow(0 0 1px rgba(200,60,60,0.35));
 }
 .crack-path-light {
   fill: none;
-  stroke: rgba(160,80,80,0.25);
-  stroke-width: 0.4;
+  stroke: rgba(160,80,80,0.3);
+  stroke-width: 0.5;
 }
-/* New: scratch — ultra-thin line */
+/* scratch ??吏곸꽑 */
 .scratch-path {
   fill: none;
-  stroke: rgba(180,180,210,0.55);
-  stroke-width: 0.7;
-  stroke-linecap: round;
+  stroke: rgba(180,180,210,0.65);
+  stroke-width: 0.9;
+  stroke-linecap: square;
 }
 .chip.defect-crack .chip-body {
   background: linear-gradient(145deg, #273d5a 0%, #182e48 40%, #0f2035 100%);
   border-color: rgba(180,70,70,0.3);
 }
 
-/* Type 3: burn mark — smaller, subtler */
+/* Type 3: burn mark */
 .chip.defect-burn .burn-mark {
   position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(60,14,0,0.85) 0%, rgba(30,8,0,0.4) 55%, transparent 75%);
+  border-radius: 2px;
+  background: radial-gradient(ellipse, rgba(60,14,0,0.9) 0%, rgba(30,8,0,0.45) 55%, transparent 75%);
   pointer-events: none;
   z-index: 3;
 }
 .chip.defect-burn .chip-body {
-  border-color: rgba(160,50,0,0.28);
+  border-color: rgba(160,50,0,0.32);
 }
-/* Type 4 (new): void / pit — tiny dark circle on die */
+/* Type 4: void / pit */
 .void-mark {
   position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, #000 20%, rgba(0,0,0,0.7) 60%, transparent 100%);
-  border: 0.5px solid rgba(100,80,40,0.3);
+  border-radius: 1px;
+  background: radial-gradient(ellipse, #000 20%, rgba(0,0,0,0.7) 60%, transparent 100%);
+  border: 0.5px solid rgba(100,80,40,0.4);
   pointer-events: none;
   z-index: 4;
 }
-/* Decoy chip — barely-there warm tint, NOT a real defect */
+/* Decoy chip */
 .chip.decoy .chip-body {
   filter: sepia(0.12) brightness(0.97);
 }
@@ -495,7 +519,6 @@ body {
 /* ===========================
    CHIP STATES
    =========================== */
-/* Correct click */
 .chip.correct-hit .chip-body {
   animation: correctFlash 0.5s ease forwards;
   pointer-events: none;
@@ -506,7 +529,6 @@ body {
   100% { opacity: 0; transform: scale(0.8); }
 }
 
-/* Wrong click */
 .chip.wrong-hit .chip-body {
   animation: wrongFlash 0.5s ease forwards;
   pointer-events: none;
@@ -517,7 +539,6 @@ body {
   100% { box-shadow: 0 0 0 2px rgba(255,68,68,0.3); }
 }
 
-/* Revealed (timeout) */
 .chip.revealed .chip-body {
   animation: revealPulse 1s ease infinite;
   pointer-events: none;
@@ -536,7 +557,7 @@ body {
   left: 50%;
   transform: translate(-50%, -50%) scale(0.5);
   font-family: 'Orbitron', monospace;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 900;
   opacity: 0;
   pointer-events: none;
@@ -559,10 +580,10 @@ body {
    =========================== */
 .combo-display {
   position: fixed;
-  top: 100px;
-  right: 20px;
+  top: 90px;
+  right: 16px;
   font-family: 'Orbitron', monospace;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 900;
   color: var(--accent-orange);
   opacity: 0;
@@ -582,7 +603,7 @@ body {
 .float-score {
   position: fixed;
   font-family: 'Orbitron', monospace;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 900;
   pointer-events: none;
   z-index: 300;
@@ -600,30 +621,30 @@ body {
    =========================== */
 .result-content {
   text-align: center;
-  padding: 48px 40px;
+  padding: 40px 28px;
   background: linear-gradient(135deg, rgba(10,22,40,0.97) 0%, rgba(5,10,20,0.99) 100%);
   border: 1px solid rgba(0,200,255,0.2);
-  border-radius: 24px;
+  border-radius: 16px;
   max-width: 400px;
-  width: 88vw;
+  width: 90vw;
   box-shadow: 0 0 80px rgba(0,100,200,0.2);
 }
-.result-icon { font-size: 4rem; margin-bottom: 12px; }
+.result-icon { font-size: 3.5rem; margin-bottom: 12px; }
 .result-title {
   font-family: 'Orbitron', monospace;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 900;
   margin-bottom: 8px;
 }
 .result-title.success { color: var(--accent-green); }
 .result-title.fail { color: var(--accent-red); }
-.result-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px; }
+.result-desc { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 16px; }
 .result-score {
   font-family: 'Orbitron', monospace;
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   font-weight: 900;
   color: var(--accent-cyan);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 /* ===========================
@@ -631,51 +652,51 @@ body {
    =========================== */
 .final-content {
   text-align: center;
-  padding: 48px 40px;
+  padding: 40px 28px;
   background: linear-gradient(135deg, rgba(10,22,40,0.97) 0%, rgba(5,10,20,0.99) 100%);
   border: 1px solid rgba(0,200,255,0.25);
-  border-radius: 24px;
+  border-radius: 16px;
   max-width: 480px;
-  width: 90vw;
+  width: 92vw;
   box-shadow: 0 0 80px rgba(0,200,255,0.15);
 }
-.final-badge { font-size: 5rem; margin-bottom: 12px; }
+.final-badge { font-size: 4rem; margin-bottom: 12px; }
 .final-title {
   font-family: 'Orbitron', monospace;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 900;
   background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 .final-stats {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .stat-card {
   background: rgba(0,200,255,0.06);
   border: 1px solid rgba(0,200,255,0.15);
-  border-radius: 12px;
-  padding: 16px 20px;
+  border-radius: 8px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex: 1;
 }
-.stat-label { font-size: 0.65rem; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; }
-.stat-value { font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 900; color: var(--accent-cyan); }
-.stat-value.grade { font-size: 2rem; }
+.stat-label { font-size: 0.62rem; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; }
+.stat-value { font-family: 'Orbitron', monospace; font-size: 1.4rem; font-weight: 900; color: var(--accent-cyan); }
+.stat-value.grade { font-size: 1.8rem; }
 .final-comment {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 28px;
+  font-size: 0.88rem;
+  margin-bottom: 24px;
   line-height: 1.6;
   background: rgba(255,255,255,0.03);
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 12px 16px;
 }
 
@@ -692,12 +713,24 @@ body::after {
 }
 
 /* ===========================
-   RESPONSIVE
+   RESPONSIVE ??MOBILE
    =========================== */
 @media (max-width: 600px) {
-  .game-title { font-size: 1.4rem; }
-  .chip-grid { gap: 8px; }
-  .hud { padding: 0 16px; }
+  :root { --hud-height: 62px; }
+  .game-title { font-size: 1.2rem; }
+  .chip-grid { gap: 6px; }
+  .hud { padding: 0 12px; }
+  .hud-value { font-size: 0.9rem; }
   .final-stats { flex-direction: column; }
-  .status-msg { font-size: 1.6rem; }
+  .status-msg { font-size: 1.4rem; }
+  .conveyor-belt { padding: 14px 10px; }
+  .logo-badge { font-size: 0.6rem; letter-spacing: 2px; }
+  .btn-primary { padding: 12px 28px; font-size: 0.85rem; }
+  .result-content, .final-content { padding: 28px 18px; }
+}
+
+@media (max-height: 700px) {
+  :root { --hud-height: 56px; }
+  .conveyor-container { padding: 10px 8px; }
+  .conveyor-label { margin-bottom: 8px; }
 }

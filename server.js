@@ -417,24 +417,27 @@ async function startServer() {
       if (!player) return;
 
       const isHost = (room.host === player.id);
+      const isTestHost = (isHost && player.name === 'TEST');
       const elapsedTime = GAME_CONFIG.SYSTEM.ROUND_TIME - room.timer;
 
+      // TEST 방장이 아닌 일반 플레이어는 60초 제한
       if (!isHost && elapsedTime < 60) {
         socket.emit('errorMsg', '라운드 시작 후 60초가 지나야 스킵할 수 있습니다.');
         return;
       }
 
+      // 방장(또는 TEST 방장)은 즉시 스킵 가능
       if (isHost) {
         if (room.timerInterval) {
           clearInterval(room.timerInterval);
           room.timerInterval = null;
         }
         endRound(roomId);
-        io.to(roomId).emit('roundSkipped', { nextRoundIn: 8 });
+        io.to(roomId).emit('roundSkipped', { nextRoundIn: isTestHost ? 2 : 8 });
         if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
         room.autoSkipTimeout = setTimeout(() => {
           proceedToNextRound(roomId);
-        }, 8000);
+        }, isTestHost ? 2000 : 8000);
         return;
       }
 
@@ -793,15 +796,19 @@ async function startServer() {
 
       if (room.status !== 'result' && room.status !== 'randombox' && room.status !== 'drillgame') return;
 
+      // 3라운드 결과 화면 -> 드릴게임 분기
       if (room.round === 3 && room.status === 'result') {
-        // 3라운드 직후 미니게임 & 랜덤박스 분기
         room.status = 'drillgame';
         room.players.forEach(p => delete p.drillScore);
         io.to(roomId).emit('startDrillGame');
         return;
       }
 
-      if (room.round >= room.maxRounds) {
+      // 드릴게임/랜덤박스 완료 후 4라운드로 진행
+      // 또는 4, 5라운드 결과 후 다음 라운드 혹은 게임오버
+      const nextRound = room.round + 1;
+
+      if (nextRound > room.maxRounds) {
         room.status = 'end';
         // 최종 누적 역대 순위 저장
         room.players.forEach(p => {
@@ -816,7 +823,7 @@ async function startServer() {
 
         io.to(roomId).emit('gameOver', { players: room.players, overallRankings });
       } else {
-        room.round++;
+        room.round = nextRound;
         room.status = 'playing';
         room.players.forEach(p => {
           p.quizSolved = false;

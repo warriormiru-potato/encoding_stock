@@ -172,16 +172,16 @@ function buildChipHTML(defectType, id, addNoise = true) {
   let extra = '';
 
   if (defectType === 'crack') {
-    // Thinner, subtler crack — harder to see
-    const sx = 15 + Math.random() * 30;
+    // 직선 균열 — L 명령만 사용 (곡선 없음)
+    const sx = 15 + Math.random() * 25;
     const sy = 10 + Math.random() * 20;
-    const mx = sx + 8 + Math.random() * 20;
-    const my = sy + 10 + Math.random() * 15;
-    const ex = mx + 5 + Math.random() * 20;
-    const ey = my + 8 + Math.random() * 20;
-    // branch fork
-    const bx = mx + (Math.random() - 0.5) * 10;
-    const by = my + 8 + Math.random() * 12;
+    const mx = sx + 12 + Math.random() * 25;
+    const my = sy + 15 + Math.random() * 20;
+    const ex = mx + 8 + Math.random() * 25;
+    const ey = my + 12 + Math.random() * 25;
+    // 분기 균열
+    const bx = mx + (Math.random() - 0.5) * 15;
+    const by = my + 10 + Math.random() * 15;
     extra = `<div class="crack-line">
       <svg class="crack-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path class="crack-path" d="M${sx},${sy} L${mx},${my} L${ex},${ey}"/>
@@ -189,17 +189,18 @@ function buildChipHTML(defectType, id, addNoise = true) {
         <path class="crack-path-light" d="M${sx-0.5},${sy-0.5} L${mx-0.5},${my-0.5} L${ex-0.5},${ey-0.5}"/>
       </svg></div>`;
   } else if (defectType === 'burn') {
-    // Smaller burn spot — harder to see
-    const bx = 20 + Math.random() * 60;
-    const by = 20 + Math.random() * 60;
-    const bs = 8 + Math.random() * 8;   // was 15–30, now 8–16
-    extra = `<div class="burn-mark" style="width:${bs}px;height:${bs * 0.85}px;left:${bx}%;top:${by}%;transform:translate(-50%,-50%)"></div>`;
+    // 직사각형 연소 마크 (곡선 없음)
+    const bx = 20 + Math.random() * 50;
+    const by = 20 + Math.random() * 50;
+    const bw = 10 + Math.random() * 12;
+    const bh = 8 + Math.random() * 10;
+    extra = `<div class="burn-mark" style="width:${bw}px;height:${bh}px;left:${bx}%;top:${by}%;transform:translate(-50%,-50%);border-radius:1px"></div>`;
   } else if (defectType === 'scratch') {
-    // New defect: fine scratch line
-    const angle = Math.random() * 60 - 30;
+    // 직선 스크래치
+    const angle = Math.random() * 80 - 40;
     const cx = 20 + Math.random() * 60;
     const cy = 20 + Math.random() * 60;
-    const len = 12 + Math.random() * 18;
+    const len = 18 + Math.random() * 25;
     const rad = (angle * Math.PI) / 180;
     const x1 = cx - Math.cos(rad) * len / 2;
     const y1 = cy - Math.sin(rad) * len / 2;
@@ -210,11 +211,11 @@ function buildChipHTML(defectType, id, addNoise = true) {
         <path class="scratch-path" d="M${x1},${y1} L${x2},${y2}"/>
       </svg></div>`;
   } else if (defectType === 'void') {
-    // New defect: tiny dark void / pit in die
-    const vx = 35 + Math.random() * 30;
-    const vy = 35 + Math.random() * 30;
-    const vs = 4 + Math.random() * 5;
-    extra = `<div class="void-mark" style="width:${vs}px;height:${vs}px;left:${vx}%;top:${vy}%;transform:translate(-50%,-50%)"></div>`;
+    // 직각 다크 피트 (곡선 없음)
+    const vx = 30 + Math.random() * 40;
+    const vy = 30 + Math.random() * 40;
+    const vs = 5 + Math.random() * 6;
+    extra = `<div class="void-mark" style="width:${vs}px;height:${vs}px;left:${vx}%;top:${vy}%;transform:translate(-50%,-50%);border-radius:0"></div>`;
   }
 
   // DECOY: very faint discoloration only, less than actual defect-discolor

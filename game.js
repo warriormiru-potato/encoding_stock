@@ -334,6 +334,7 @@ function showHintSelectionScreen() {
 
   window.COMPANIES.forEach(c => {
     const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
+    const textColor = (cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' || cardColor === '#3b82f6') ? '#ffffff' : '#000000';
     const card = document.createElement('div');
     card.className = 'hint-card';
     card.style.borderColor = cardColor;
@@ -345,7 +346,7 @@ function showHintSelectionScreen() {
           <span style="font-size: 2rem;">❓</span>
           <span style="font-size: 0.85rem; margin-top: 5px; color: var(--text-muted);">HINT</span>
         </div>
-        <div class="hint-card-back" style="background: ${cardColor}; color: ${cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' ? '#ffffff' : '#000000'};">
+        <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor};">
           <div class="hint-card-name">${c.name}</div>
         </div>
       </div>
@@ -359,8 +360,8 @@ function showHintSelectionScreen() {
       selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
       selectedCompanyIdsForQuiz.push(c.id);
 
-      // 퀴즈 및 추가 힌트 해금을 생략하고 즉시 획득한 단일 힌트 요약 화면(거래 개시)으로 진행
-      showFinalQuizHintsSummary();
+      // 힌트 선택 후 퀴즈 1단계로 진행 (맞추면 추가 힌트 카드 선택, 틀리면 종료)
+      startHintQuizStage(1);
     });
     quizOptions.appendChild(card);
   });
@@ -405,19 +406,35 @@ function submitRoundQuiz(quiz, selected, stage) {
   quizResult.style.display = 'block';
 
   if (isCorrect) {
-    // 맞췄을 때 힌트를 획득할 회사 선택하게 함
+    // 맞췄을 때 힌트를 획득할 회사 선택하게 함 (카드 형태)
     quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">정답입니다!</span><br>${quiz.explain}<br><br><strong>힌트를 열람할 추가 회사를 선택하세요:</strong>`;
     
-    // 아직 고르지 않은 회사 필터링
+    const cardContainer = document.createElement('div');
+    cardContainer.className = 'hint-cards-container';
+    cardContainer.style.marginTop = '15px';
+    
+    let hasAvailable = false;
     window.COMPANIES.forEach(c => {
       if (!selectedCompanyIdsForQuiz.includes(c.id)) {
-        const btn = document.createElement('button');
-        btn.textContent = c.name;
-        btn.style.margin = '5px';
-        btn.addEventListener('click', () => {
+        hasAvailable = true;
+        const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
+        const textColor = (cardColor === '#000000') ? '#ffffff' : '#000000';
+        const card = document.createElement('div');
+        card.className = 'hint-card';
+        card.innerHTML = `
+          <div class="hint-card-inner">
+            <div class="hint-card-front" style="background: rgba(255,255,255,0.05); border: 2px solid ${cardColor};">
+              <span style="font-size: 1.5rem;">💡</span>
+              <span style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">HINT</span>
+            </div>
+            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor};">
+              <div class="hint-card-name" style="font-size:0.9rem;">${c.name}</div>
+            </div>
+          </div>
+        `;
+        card.addEventListener('click', () => {
           const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
           const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
-          const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
           selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
           selectedCompanyIdsForQuiz.push(c.id);
 
@@ -427,9 +444,15 @@ function submitRoundQuiz(quiz, selected, stage) {
             showFinalQuizHintsSummary();
           }
         });
-        quizExplain.appendChild(btn);
+        cardContainer.appendChild(card);
       }
     });
+    
+    if (hasAvailable) {
+      quizExplain.appendChild(cardContainer);
+    } else {
+      showFinalQuizHintsSummary();
+    }
   } else {
     // 틀렸을 경우 즉시 퀴즈 종료 (더 이상 퀴즈 기회 없음)
     quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">오답입니다.</span> (정답: ${quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer]})<br>${quiz.explain}`;
@@ -460,9 +483,13 @@ function showFinalQuizHintsSummary() {
   
   let summaryHtml = '<div style="display:flex; flex-direction:column; gap:12px; text-align:left; width:100%;">';
   selectedHints.forEach((sh, idx) => {
+    // 배경색이 어두우면 회사 이름을 흰색으로
+    const nameColor = (sh.color === '#000000' || sh.color === '#ef4444' || sh.color === '#8b5cf6' || sh.color === '#3b82f6') ? '#ffffff' : sh.color;
+    const bgColor = sh.color === '#000000' ? '#111111' : '#ffffff';
+    const textColor = sh.color === '#000000' ? '#ffffff' : '#000000';
     summaryHtml += `
-      <div style="background:#ffffff; color:#000000; padding:15px; border-radius:10px; border-left:8px solid ${sh.color}; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
-        <strong style="color:${sh.color}; font-size:1.1rem; display:block; margin-bottom:5px;">[${sh.companyName}] 힌트</strong>
+      <div style="background:${bgColor}; color:${textColor}; padding:15px; border-radius:10px; border-left:8px solid ${sh.color}; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+        <strong style="color:${nameColor}; font-size:1.1rem; display:block; margin-bottom:5px;">[${sh.companyName}] 힌트</strong>
         <p style="margin:0; line-height: 1.5; font-size:1.05rem; font-weight:700;">${sh.hint}</p>
       </div>
     `;
@@ -871,18 +898,27 @@ window.addEventListener('message', (e) => {
     const activeRoundData = currentRoundScenario.rounds.find(r => r.round === 2);
     
     if (score >= 2000) {
-      // 힌트 2개 해금
-      const keys = Object.keys(activeRoundData.companyHints);
-      if (keys.length > 0) {
-        selectedHints.push({ companyName: "서휘찬 다크파운드리", hint: activeRoundData.companyHints[keys[0]] });
+      // 힌트 2개 해금 - 실제 companyId로 이름 조회
+      const companyIds = Object.keys(activeRoundData.companyHints);
+      if (companyIds.length > 0) {
+        const cid = companyIds[0];
+        const cName = window.COMPANIES.find(c => c.id === cid)?.name || cid;
+        const cColor = COMPANY_COLORS[cid] || '#ffffff';
+        selectedHints.push({ companyName: cName, hint: activeRoundData.companyHints[cid], color: cColor });
       }
-      if (keys.length > 1) {
-        selectedHints.push({ companyName: "정선우 팹리스", hint: activeRoundData.companyHints[keys[1]] });
+      if (companyIds.length > 1) {
+        const cid = companyIds[1];
+        const cName = window.COMPANIES.find(c => c.id === cid)?.name || cid;
+        const cColor = COMPANY_COLORS[cid] || '#ffffff';
+        selectedHints.push({ companyName: cName, hint: activeRoundData.companyHints[cid], color: cColor });
       }
     } else if (score >= 800) {
-      const keys = Object.keys(activeRoundData.companyHints);
-      if (keys.length > 0) {
-        selectedHints.push({ companyName: "서휘찬 다크파운드리", hint: activeRoundData.companyHints[keys[0]] });
+      const companyIds = Object.keys(activeRoundData.companyHints);
+      if (companyIds.length > 0) {
+        const cid = companyIds[0];
+        const cName = window.COMPANIES.find(c => c.id === cid)?.name || cid;
+        const cColor = COMPANY_COLORS[cid] || '#ffffff';
+        selectedHints.push({ companyName: cName, hint: activeRoundData.companyHints[cid], color: cColor });
       }
     }
 
