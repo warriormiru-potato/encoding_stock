@@ -586,14 +586,9 @@ async function startServer() {
             }
           });
           if (winner) {
-            const rolled = ITEMS[Math.floor(Math.random() * ITEMS.length)];
-            winner.items.push(rolled);
-            io.to(roomId).emit('drillGameWinner', { winnerName: winner.name, score: maxScore, itemName: rolled.name });
-            if (rolled.id === 'distorted') {
-              io.to(roomId).emit('distortedGainedAlert', { playerName: winner.name });
-            }
+            io.to(roomId).emit('drillGameWinner', { winnerName: winner.name, score: maxScore });
           }
-          // 랜덤 박스 단계 진행
+          // 전체 플레이어 대상 랜덤 박스 단계 진행 (각자 정확히 1개씩 획득)
           rollRandomBoxForEveryone(roomId);
         }
       }

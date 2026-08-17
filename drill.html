@@ -292,21 +292,18 @@
 
     function calculateSimilarity() {
       if (drill.path.length === 0 || targetPattern.length === 0) return 0;
-      let totalDist = 0;
       
+      // 도안의 전체 포인트 중 플레이어가 25px 이내로 지나간(가공 완료한) 포인트 비율 계산
+      let coveredPoints = 0;
+      const hitRadius = 25; // 드릴 가공 유효 반경
+
       targetPattern.forEach(tp => {
-        let minDist = Infinity;
-        drill.path.forEach(dp => {
-          const dist = Math.hypot(tp.x - dp.x, tp.y - dp.y);
-          if (dist < minDist) minDist = dist;
-        });
-        totalDist += minDist;
+        const reached = drill.path.some(dp => Math.hypot(tp.x - dp.x, tp.y - dp.y) <= hitRadius);
+        if (reached) coveredPoints++;
       });
 
-      const avgDist = totalDist / targetPattern.length;
-      // 35px 허용 오차 기반 유사도 환산
-      const sim = Math.max(0, Math.min(100, Math.round(100 - (avgDist / 0.35))));
-      return sim;
+      const percentage = Math.min(100, Math.round((coveredPoints / targetPattern.length) * 100));
+      return percentage;
     }
 
     function gameLoop() {
