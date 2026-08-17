@@ -424,6 +424,36 @@ async function startServer() {
       }
     });
 
+    // 관리자/테스트용 강제 게임 종료
+    socket.on('forceEndGame', ({ roomId }) => {
+      const room = rooms[roomId];
+      if (!room) return;
+      
+      if (room.timerInterval) {
+        clearInterval(room.timerInterval);
+        room.timerInterval = null;
+      }
+      if (room.autoSkipTimeout) {
+        clearTimeout(room.autoSkipTimeout);
+        room.autoSkipTimeout = null;
+      }
+
+      calculateAssets(room);
+      room.status = 'end';
+      
+      room.players.forEach(p => {
+        overallRankings.push({
+          name: p.name,
+          totalAsset: p.totalAsset,
+          date: new Date().toLocaleDateString()
+        });
+      });
+      overallRankings.sort((a, b) => b.totalAsset - a.totalAsset);
+      overallRankings = overallRankings.slice(0, 30);
+
+      io.to(roomId).emit('gameOver', { players: room.players, overallRankings });
+    });
+
     // 스킵 투표 (1라운드 전용)
     socket.on('voteSkip', ({ roomId }) => {
       const room = rooms[roomId];

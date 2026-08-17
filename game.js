@@ -319,8 +319,8 @@ let currentRoundNumber = 1;
 let selectedCompanyIdsForQuiz = [];
 
 function showHintQuizSystem(data) {
-  currentRoundScenario = data.scenario;
-  currentRoundNumber = data.round;
+  currentRoundScenario = data.scenario || (window.SCENARIOS && window.SCENARIOS[0]) || null;
+  currentRoundNumber = data.round || 1;
   selectedHints = [];
   selectedCompanyIdsForQuiz = [];
 
@@ -411,7 +411,8 @@ function showHintSelectionScreen() {
 
     card.addEventListener('click', () => {
       // 선택한 회사의 힌트 즉시 해금
-      const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
+      const scenarioObj = currentRoundScenario || (window.SCENARIOS && window.SCENARIOS[0]);
+      const activeRoundData = scenarioObj?.rounds?.find(r => r.round === currentRoundNumber) || scenarioObj?.rounds?.[(currentRoundNumber - 1) % (scenarioObj?.rounds?.length || 1)];
       const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
       
       selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
@@ -490,7 +491,8 @@ function submitRoundQuiz(quiz, selected, stage) {
           </div>
         `;
         card.addEventListener('click', () => {
-          const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
+          const scenarioObj = currentRoundScenario || (window.SCENARIOS && window.SCENARIOS[0]);
+          const activeRoundData = scenarioObj?.rounds?.find(r => r.round === currentRoundNumber) || scenarioObj?.rounds?.[(currentRoundNumber - 1) % (scenarioObj?.rounds?.length || 1)];
           const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
           selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
           selectedCompanyIdsForQuiz.push(c.id);
@@ -1050,7 +1052,8 @@ function showMinigameCardSelection(allowedCount) {
         `;
 
         card.addEventListener('click', () => {
-          const activeRoundData = currentRoundScenario.rounds.find(r => r.round === 2);
+          const scenarioObj = currentRoundScenario || (window.SCENARIOS && window.SCENARIOS[0]);
+          const activeRoundData = scenarioObj?.rounds?.find(r => r.round === 2) || scenarioObj?.rounds?.[1] || scenarioObj?.rounds?.[0];
           const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
           
           selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
@@ -1433,3 +1436,30 @@ socket.on('breakingNews', (data) => {
     }, 400);
   }, 7000);
 });
+
+// 콘솔 개발자/테스트용 단축 명령어
+window.forceEndGame = function() {
+  if (!currentRoom) {
+    console.warn("참여 중인 방이 없습니다.");
+    return;
+  }
+  socket.emit('forceEndGame', { roomId: currentRoom });
+  console.log("⚡ [강제 게임 종료] 서버에 요청을 전송했습니다.");
+};
+
+window.skipRound = function() {
+  if (!currentRoom) return;
+  socket.emit('voteSkip', { roomId: currentRoom });
+};
+
+window.skipTurn = function() {
+  if (!currentRoom) return;
+  socket.emit('skipMyTurn', { roomId: currentRoom });
+};
+
+console.log(`
+%c🎮 [자운고 주식의신 디버그 콘솔 명령어]
+- forceEndGame() : 즉시 게임을 종료하고 최종 순위/명예의 전당 화면으로 이동
+- skipRound()    : 1라운드 즉시 스킵
+- skipTurn()     : 2~5라운드 턴 즉시 넘기기
+`, 'color: #38bdf8; font-weight: bold; font-size: 1.1rem;');
