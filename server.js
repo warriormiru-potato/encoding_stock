@@ -288,7 +288,7 @@ async function startServer() {
       const requester = room?.players.find(p => p.socketId === socket.id);
       if (room && requester && room.host === requester.id) {
         room.scenario = SCENARIOS.find(s => Number(s.id) === Number(scenarioId));
-        room.maxRounds = (room.scenario && room.scenario.rounds && room.scenario.rounds.length > 0) ? room.scenario.rounds.length : 5;
+        room.maxRounds = Math.max(5, (room.scenario && room.scenario.rounds && room.scenario.rounds.length > 0) ? room.scenario.rounds.length : 5);
         room.status = 'playing';
         room.round = 1;
         room.skipVotes = [];

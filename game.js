@@ -624,13 +624,15 @@ socket.on('turnTimerUpdate', ({ time, elapsed }) => {
   turnTimerDisplayEl.textContent = time;
 
   const activeId = activeTurnPlayerEl.textContent.includes('(나)');
-  if (activeId) {
-    if (elapsed < 15) {
+  const isTestUser = (me && me.name === 'TEST') || (isHost && me && me.name === 'TEST');
+
+  if (activeId || isTestUser) {
+    if (!isTestUser && elapsed < 15) {
       skipTurnBtn.disabled = true;
       skipTurnBtn.textContent = `턴 넘기기 (${15 - elapsed}초 대기)`;
     } else {
       skipTurnBtn.disabled = false;
-      skipTurnBtn.textContent = '턴 넘기기';
+      skipTurnBtn.textContent = isTestUser ? '⚡ 즉시 턴 넘기기' : '턴 넘기기';
     }
   } else {
     skipTurnBtn.disabled = true;
@@ -983,8 +985,19 @@ window.addEventListener('message', (e) => {
   } else if (e.data && e.data.type === 'MINIGAME_EXIT') {
     minigameModal.style.display = 'none';
     minigameIframe.src = '';
-    showFinalQuizHintsSummary();
-    closeQuizBtn.textContent = '확인';
+    const score = e.data.score || 0;
+    
+    // 점수에 따라 카드 선택 기회 제공
+    if (score >= 2000) {
+      // 2개 선택 가능
+      showMinigameCardSelection(2);
+    } else if (score >= 800) {
+      // 1개 선택 가능
+      showMinigameCardSelection(1);
+    } else {
+      // 800점 미만: 힌트 없음
+      showMinigameFailureSummary();
+    }
   } else if (e.data && e.data.type === 'DRILL_GAME_COMPLETE') {
     // 드릴 게임 완료 점수 전송
     const drillModal = document.getElementById('drillgame-modal');
@@ -998,6 +1011,82 @@ window.addEventListener('message', (e) => {
   }
 });
 
+function showMinigameCardSelection(allowedCount) {
+  selectedHints = [];
+  selectedCompanyIdsForQuiz = [];
+  
+  document.getElementById('quiz-modal-title').textContent = `🎁 미니게임 보상: 힌트 카드 선택 (${allowedCount}개)`;
+  document.getElementById('quiz-modal-desc').textContent = `우수한 성적 달성! 6개 회사 카드 중 힌트를 열람할 회사를 선택하세요. (남은 선택: ${allowedCount}개)`;
+  
+  quizQuestion.style.display = 'none';
+  quizOptions.innerHTML = '';
+  quizResult.style.display = 'none';
+  document.getElementById('quiz-hint-box').style.display = 'none';
+  closeQuizBtn.style.display = 'none';
+  quizModal.style.display = 'flex';
+
+  quizOptions.className = 'quiz-options hint-cards-container';
+
+  function renderChoices(remaining) {
+    quizOptions.innerHTML = '';
+    document.getElementById('quiz-modal-desc').textContent = `6개 회사 카드 중 힌트를 열람할 회사를 선택하세요. (남은 선택: ${remaining}개)`;
+    
+    window.COMPANIES.forEach(c => {
+      if (!selectedCompanyIdsForQuiz.includes(c.id)) {
+        const cardColor = getCompanyColor(c);
+        const textColor = (cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' || cardColor === '#3b82f6') ? '#ffffff' : '#000000';
+        const card = document.createElement('div');
+        card.className = 'hint-card';
+        card.innerHTML = `
+          <div class="hint-card-inner">
+            <div class="hint-card-front" style="background: rgba(255, 255, 255, 0.08); border: 2.5px solid ${cardColor};">
+              <span style="font-size: 2rem;">💡</span>
+              <span style="font-size: 0.85rem; margin-top: 5px; color: #cbd5e1; font-weight: bold;">HINT</span>
+            </div>
+            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
+              <div class="hint-card-name">${c.name}</div>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          const activeRoundData = currentRoundScenario.rounds.find(r => r.round === 2);
+          const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
+          
+          selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
+          selectedCompanyIdsForQuiz.push(c.id);
+
+          const nextRemaining = remaining - 1;
+          if (nextRemaining > 0) {
+            renderChoices(nextRemaining);
+          } else {
+            showFinalQuizHintsSummary();
+          }
+        });
+        quizOptions.appendChild(card);
+      }
+    });
+  }
+
+  renderChoices(allowedCount);
+}
+
+function showMinigameFailureSummary() {
+  document.getElementById('quiz-modal-title').textContent = '⚠️ 미니게임 결과';
+  document.getElementById('quiz-modal-desc').textContent = '검사 점수가 800점 미만으로 힌트 획득에 실패하였습니다.';
+  quizOptions.innerHTML = '';
+  quizQuestion.style.display = 'none';
+  quizResult.style.display = 'block';
+
+  quizExplain.innerHTML = '<div style="color:var(--danger); font-weight:bold; font-size:1.05rem;">이번 라운드는 추가 힌트 없이 거래가 시작됩니다.</div>';
+  const hintBox = document.getElementById('quiz-hint-box');
+  hintBox.style.display = 'none';
+
+  closeQuizBtn.style.display = 'block';
+  closeQuizBtn.textContent = '확인 (거래 개시)';
+  quizModal.style.display = 'flex';
+}
+
 // 3라운드 드릴 미니게임 이벤트 리스너
 socket.on('startDrillGame', () => {
   const drillModal = document.getElementById('drillgame-modal');
@@ -1007,9 +1096,9 @@ socket.on('startDrillGame', () => {
   drillModal.style.display = 'flex';
 });
 
-// 드릴 게임 승자 소식
+// 드릴 게임 승자 소식 (alert 대신 콘솔 로그 또는 자연스럽게 랜덤박스로 진행)
 socket.on('drillGameWinner', ({ winnerName, score, itemName }) => {
-  alert(`🏆 드릴 미션 완료!\n최고 유사율 득점자: ${winnerName} (${score}%)\n보상으로 [${itemName}]을 획득하였습니다!`);
+  console.log(`드릴 미션 완료 - 최고 유사율: ${winnerName} (${score}%), 보상: [${itemName}]`);
 });
 
 // 랜덤박스 오픈 처리
@@ -1046,11 +1135,13 @@ socket.on('randomBoxRolled', ({ rolls, players }) => {
     confirmBtn.className = 'btn';
     confirmBtn.style.width = '100%';
     confirmBtn.style.marginTop = '15px';
-    confirmBtn.textContent = '아이템 보관함 확인';
+    confirmBtn.textContent = '확인 (4라운드 진행)';
     confirmBtn.onclick = () => {
       randomboxModal.style.display = 'none';
       confirmBtn.remove();
-      socket.emit('requestSync', { roomId: currentRoom });
+      if (isHost) {
+        socket.emit('nextRound', { roomId: currentRoom });
+      }
     };
     rolledItemResult.appendChild(confirmBtn);
   };

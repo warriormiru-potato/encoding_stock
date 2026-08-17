@@ -366,7 +366,6 @@
       clearInterval(timerInterval);
       
       const finalSim = calculateSimilarity();
-      alert(`가공 완료! 최종 일치율: ${finalSim}%`);
 
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
