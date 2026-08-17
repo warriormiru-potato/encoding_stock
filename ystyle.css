@@ -1,4 +1,4 @@
-﻿/* ===========================
+/* ===========================
    GLOBAL RESET & VARIABLES
    =========================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -713,24 +713,31 @@ body::after {
 }
 
 /* ===========================
-   RESPONSIVE ??MOBILE
+   RESPONSIVE — MOBILE
    =========================== */
 @media (max-width: 600px) {
-  :root { --hud-height: 62px; }
+  :root { --hud-height: 54px; }
   .game-title { font-size: 1.2rem; }
   .chip-grid { gap: 6px; }
-  .hud { padding: 0 12px; }
-  .hud-value { font-size: 0.9rem; }
+  .hud { padding: 0 10px; }
+  .hud-value { font-size: 0.85rem; }
   .final-stats { flex-direction: column; }
-  .status-msg { font-size: 1.4rem; }
-  .conveyor-belt { padding: 14px 10px; }
+  .status-msg { font-size: 1.2rem; }
+  .conveyor-belt { padding: 10px 8px; width: 96vw; }
   .logo-badge { font-size: 0.6rem; letter-spacing: 2px; }
-  .btn-primary { padding: 12px 28px; font-size: 0.85rem; }
-  .result-content, .final-content { padding: 28px 18px; }
+  .btn-primary { padding: 10px 24px; font-size: 0.85rem; }
+  .result-content, .final-content { padding: 24px 16px; }
+  .timer-wrap { width: 42px; height: 42px; }
+  .timer-text { font-size: 0.95rem; }
 }
 
 @media (max-height: 700px) {
-  :root { --hud-height: 56px; }
-  .conveyor-container { padding: 10px 8px; }
-  .conveyor-label { margin-bottom: 8px; }
+  :root { --hud-height: 50px; }
+  .conveyor-container { padding: 6px 4px; }
+  .conveyor-label { margin-bottom: 4px; font-size: 0.65rem; }
+  .chip-grid { gap: 5px; }
+  .conveyor-belt { padding: 8px 6px; }
+  .start-content { padding: 20px 16px; }
+  .rules-box { margin-bottom: 15px; }
+  .chip-preview { margin-bottom: 15px; }
 }

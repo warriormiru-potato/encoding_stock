@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>반도체 미세 드릴링 레이저 미션</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -16,55 +16,70 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
-      overflow: hidden;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px;
     }
     .game-container {
-      background: rgba(17, 24, 39, 0.8);
+      background: rgba(17, 24, 39, 0.9);
       border: 2px solid #3b82f6;
       box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
       border-radius: 16px;
-      padding: 24px;
+      padding: 16px;
       text-align: center;
-      max-width: 700px;
-      width: 95%;
+      max-width: 600px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     h2 {
       font-family: 'Orbitron', sans-serif;
       color: #3b82f6;
-      margin-bottom: 8px;
+      font-size: 1.25rem;
+      margin-bottom: 6px;
       text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
     }
     p {
       color: #9ca3af;
-      font-size: 0.95rem;
-      margin-bottom: 20px;
-    }
-    canvas {
-      background: #090d16;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
     }
     .stats {
       display: flex;
       justify-content: space-around;
-      margin-bottom: 20px;
-      font-size: 1.1rem;
+      width: 100%;
+      margin-bottom: 12px;
+      font-size: 1rem;
     }
     .stat-val {
       font-family: 'Orbitron', sans-serif;
       font-weight: bold;
       color: #10b981;
     }
+    .canvas-wrap {
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 5 / 4;
+      position: relative;
+      margin-bottom: 12px;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      background: #090d16;
+      border: 1.5px solid #1f2937;
+      border-radius: 10px;
+      display: block;
+      touch-action: none;
+    }
     .btn {
       background: #3b82f6;
       color: white;
       border: none;
-      padding: 12px 30px;
+      padding: 10px 28px;
       font-size: 1rem;
       font-weight: bold;
       border-radius: 30px;
@@ -72,34 +87,76 @@
       font-family: 'Orbitron', sans-serif;
       letter-spacing: 1px;
       transition: all 0.3s;
+      margin-bottom: 10px;
     }
     .btn:hover {
       background: #2563eb;
       box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
     }
+    
+    /* 모바일 가상 조이패드 */
+    .mobile-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(2, 48px);
+      gap: 6px;
+      justify-content: center;
+      margin-top: 6px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .dpad-btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1.5px solid #3b82f6;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 1.2rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .dpad-btn:active, .dpad-btn.active {
+      background: #3b82f6;
+      color: #000000;
+    }
     #keys-guide {
-      margin-top: 15px;
+      margin-top: 8px;
       color: #6b7280;
-      font-size: 0.85rem;
+      font-size: 0.75rem;
     }
   </style>
 </head>
 <body>
 
   <div class="game-container">
-    <h2>⚡ DRILL MISSION: 회로 정밀 가공</h2>
-    <p>WASD 키를 조작하여 화면의 회로 도안(파란 점선)을 따라 드릴을 조작하세요!</p>
+    <h2>⚡ DRILL MISSION: 회로 직선 가공</h2>
+    <p>도안(파란 점선)을 따라 드릴 헤드를 정밀하게 조작하세요!</p>
     
     <div class="stats">
       <div>남은 시간: <span id="time-left" class="stat-val">15</span>초</div>
       <div>현재 일치율: <span id="similarity" class="stat-val">0%</span></div>
     </div>
 
-    <canvas id="drillCanvas" width="500" height="400"></canvas>
+    <div class="canvas-wrap">
+      <canvas id="drillCanvas" width="500" height="400"></canvas>
+    </div>
 
     <button id="start-btn" class="btn">가공 개시</button>
+
+    <!-- 모바일 조작 터치 패드 -->
+    <div class="mobile-controls">
+      <div></div>
+      <button class="dpad-btn" id="dpad-up">▲</button>
+      <div></div>
+      <button class="dpad-btn" id="dpad-left">◀</button>
+      <button class="dpad-btn" id="dpad-down">▼</button>
+      <button class="dpad-btn" id="dpad-right">▶</button>
+    </div>
     
-    <div id="keys-guide">조작법: W (위), A (왼쪽), S (아래), D (오른쪽) | 속도가 빠르니 정밀하게 제어하세요!</div>
+    <div id="keys-guide">PC: WASD 또는 방향키 / 모바일: 화면 버튼 터치</div>
   </div>
 
   <script>
@@ -113,26 +170,60 @@
     let timeLeft = 15;
     let timerInterval = null;
 
-    // 드릴 상태
     const drill = {
-      x: 250,
-      y: 50,
-      speed: 3.5,
-      path: [] // 플레이어가 지나간 경로
+      x: 50,
+      y: 80,
+      speed: 3.8,
+      path: []
     };
 
-    // 타겟 도안 (둥근 회로 패턴)
+    // 곡선 없이 명확하고 다양한 직각/직선 회로 도안 생성기
     const targetPattern = [];
     function generateTargetPattern() {
-      // 타원형 나선 궤도 생성
-      const centerX = 250;
-      const centerY = 200;
-      for (let angle = 0; angle < Math.PI * 4; angle += 0.05) {
-        const radius = 30 + angle * 12;
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        targetPattern.push({ x, y });
+      // 4가지 직선 회로 패턴 중 무작위 선택
+      const patterns = [
+        // 패턴 1: 직각 회로 배선 (Square Spiral)
+        [
+          {x: 60, y: 60}, {x: 440, y: 60}, {x: 440, y: 340}, {x: 120, y: 340},
+          {x: 120, y: 120}, {x: 380, y: 120}, {x: 380, y: 280}, {x: 180, y: 280},
+          {x: 180, y: 180}, {x: 320, y: 180}, {x: 320, y: 230}
+        ],
+        // 패턴 2: 지그재그 버스 라인 (ZigZag Bus)
+        [
+          {x: 50, y: 70}, {x: 450, y: 70}, {x: 450, y: 140}, {x: 50, y: 140},
+          {x: 50, y: 210}, {x: 450, y: 210}, {x: 450, y: 280}, {x: 50, y: 280},
+          {x: 50, y: 340}, {x: 450, y: 340}
+        ],
+        // 패턴 3: 마름모/다이아몬드 및 크로스 회로 (Diamond Grid)
+        [
+          {x: 250, y: 40}, {x: 450, y: 200}, {x: 250, y: 360}, {x: 50, y: 200},
+          {x: 250, y: 40}, {x: 250, y: 360}, {x: 50, y: 200}, {x: 450, y: 200}
+        ],
+        // 패턴 4: 칩 패키징 브릿지 (Double Bridge)
+        [
+          {x: 60, y: 80}, {x: 200, y: 80}, {x: 200, y: 320}, {x: 60, y: 320},
+          {x: 60, y: 200}, {x: 440, y: 200}, {x: 440, y: 80}, {x: 300, y: 80},
+          {x: 300, y: 320}, {x: 440, y: 320}
+        ]
+      ];
+
+      const selected = patterns[Math.floor(Math.random() * patterns.length)];
+
+      // 도안의 점들을 촘촘한 보간 포인트로 변환하여 판정 정확도 향상
+      for (let i = 0; i < selected.length - 1; i++) {
+        const p1 = selected[i];
+        const p2 = selected[i + 1];
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        const steps = Math.max(1, Math.floor(dist / 8));
+        for (let s = 0; s < steps; s++) {
+          const t = s / steps;
+          targetPattern.push({
+            x: p1.x + (p2.x - p1.x) * t,
+            y: p1.y + (p2.y - p1.y) * t
+          });
+        }
       }
+      targetPattern.push(selected[selected.length - 1]);
     }
     generateTargetPattern();
 
@@ -140,16 +231,37 @@
     const keys = { w: false, a: false, s: false, d: false };
     window.addEventListener('keydown', (e) => {
       const key = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd'].includes(key)) {
-        keys[key] = true;
-      }
+      if (['w', 'arrowup'].includes(key)) keys.w = true;
+      if (['a', 'arrowleft'].includes(key)) keys.a = true;
+      if (['s', 'arrowdown'].includes(key)) keys.s = true;
+      if (['d', 'arrowright'].includes(key)) keys.d = true;
     });
     window.addEventListener('keyup', (e) => {
       const key = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd'].includes(key)) {
-        keys[key] = false;
-      }
+      if (['w', 'arrowup'].includes(key)) keys.w = false;
+      if (['a', 'arrowleft'].includes(key)) keys.a = false;
+      if (['s', 'arrowdown'].includes(key)) keys.s = false;
+      if (['d', 'arrowright'].includes(key)) keys.d = false;
     });
+
+    // 모바일 터치 이벤트 바인딩
+    function bindDpad(btnId, keyName) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const activate = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('active'); };
+      const deactivate = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); };
+      
+      btn.addEventListener('touchstart', activate, { passive: false });
+      btn.addEventListener('touchend', deactivate, { passive: false });
+      btn.addEventListener('touchcancel', deactivate, { passive: false });
+      btn.addEventListener('mousedown', activate);
+      btn.addEventListener('mouseup', deactivate);
+      btn.addEventListener('mouseleave', deactivate);
+    }
+    bindDpad('dpad-up', 'w');
+    bindDpad('dpad-down', 's');
+    bindDpad('dpad-left', 'a');
+    bindDpad('dpad-right', 'd');
 
     startBtn.addEventListener('click', startGame);
 
@@ -158,7 +270,6 @@
       gameActive = true;
       startBtn.style.display = 'none';
       
-      // 드릴 초기 위치를 패턴의 첫 번째 지점으로 설정
       if (targetPattern.length > 0) {
         drill.x = targetPattern[0].x;
         drill.y = targetPattern[0].y;
@@ -180,10 +291,9 @@
     }
 
     function calculateSimilarity() {
-      if (drill.path.length === 0) return 0;
+      if (drill.path.length === 0 || targetPattern.length === 0) return 0;
       let totalDist = 0;
       
-      // 각 타겟 포인트에서 플레이어 이동 경로의 최단 거리 측정
       targetPattern.forEach(tp => {
         let minDist = Infinity;
         drill.path.forEach(dp => {
@@ -194,34 +304,31 @@
       });
 
       const avgDist = totalDist / targetPattern.length;
-      // 기준치 거리(30px) 대비 유사도 100% 환산
-      const sim = Math.max(0, Math.min(100, Math.round(100 - (avgDist / 0.3))));
+      // 35px 허용 오차 기반 유사도 환산
+      const sim = Math.max(0, Math.min(100, Math.round(100 - (avgDist / 0.35))));
       return sim;
     }
 
     function gameLoop() {
       if (!gameActive) return;
 
-      // 조작 제어
       if (keys.w) drill.y -= drill.speed;
       if (keys.s) drill.y += drill.speed;
       if (keys.a) drill.x -= drill.speed;
       if (keys.d) drill.x += drill.speed;
 
-      // 벽 경계
       drill.x = Math.max(10, Math.min(canvas.width - 10, drill.x));
       drill.y = Math.max(10, Math.min(canvas.height - 10, drill.y));
 
       drill.path.push({ x: drill.x, y: drill.y });
 
-      // 그리기
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. 도안 그리기
+      // 1. 도안 직선 그리기
       ctx.beginPath();
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.45)';
       ctx.lineWidth = 6;
-      ctx.setLineDash([5, 10]);
+      ctx.setLineDash([6, 8]);
       targetPattern.forEach((p, idx) => {
         if (idx === 0) ctx.moveTo(p.x, p.y);
         else ctx.lineTo(p.x, p.y);
@@ -229,7 +336,7 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 2. 플레이어 가공 경로 그리기
+      // 2. 가공 경로 그리기
       ctx.beginPath();
       ctx.strokeStyle = '#10b981';
       ctx.lineWidth = 4;
@@ -239,16 +346,15 @@
       });
       ctx.stroke();
 
-      // 3. 드릴 헤드 그리기
+      // 3. 드릴 헤드
       ctx.beginPath();
       ctx.arc(drill.x, drill.y, 8, 0, Math.PI * 2);
       ctx.fillStyle = '#f59e0b';
       ctx.shadowColor = '#f59e0b';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 12;
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // 실시간 유사도 업데이트
       const currentSim = calculateSimilarity();
       similarityEl.textContent = `${currentSim}%`;
 
@@ -262,7 +368,6 @@
       const finalSim = calculateSimilarity();
       alert(`가공 완료! 최종 일치율: ${finalSim}%`);
 
-      // 부모 창으로 데이터 공유
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
           type: 'DRILL_GAME_COMPLETE',
@@ -273,3 +378,4 @@
   </script>
 </body>
 </html>
+

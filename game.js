@@ -87,6 +87,35 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// 뒤로가기 버튼 처리 (브라우저/모바일)
+function goToLoginScreen() {
+  loginScreen.style.display = 'block';
+  roomScreen.style.display = 'none';
+  gameScreen.style.display = 'none';
+  resultScreen.style.display = 'none';
+  currentRoom = null;
+  me = null;
+  localStorage.removeItem('roomId');
+  // 힌트/퀴즈 모달 닫기
+  if (quizModal) quizModal.style.display = 'none';
+  // 방 목록 새로 요청
+  socket.emit('getRoomList');
+}
+
+window.addEventListener('popstate', (e) => {
+  // 게임 또는 방 화면에 있을 때 뒤로가기 → 홈
+  const onGameScreen = gameScreen.style.display === 'block';
+  const onRoomScreen = roomScreen.style.display === 'block';
+  if (onGameScreen || onRoomScreen) {
+    goToLoginScreen();
+    history.replaceState({ screen: 'home' }, '');
+  }
+});
+
+// 초기 상태 설정
+history.replaceState({ screen: 'home' }, '');
+
+
 socket.on('connect', () => {
   connectionStatus.textContent = '서버 연결 완료!';
   connectionStatus.style.color = 'var(--success)';
@@ -143,8 +172,13 @@ socket.on('errorMsg', (msg) => {
 socket.on('rejoinFailed', (msg) => {
   console.log('Rejoin failed:', msg);
   localStorage.removeItem('roomId');
-  alert('📢 새로고침 복구 완료');
-  window.location.reload();
+  // 재접속 실패 → 로그인 화면으로 (새로고침 없이)
+  loginScreen.style.display = 'block';
+  roomScreen.style.display = 'none';
+  gameScreen.style.display = 'none';
+  resultScreen.style.display = 'none';
+  currentRoom = null;
+  me = null;
 });
 
 socket.on('disconnect', () => {
@@ -173,7 +207,9 @@ socket.on('rejoinedRoom', ({ roomId, player, room, overallRankings }) => {
     loginScreen.style.display = 'none';
     roomScreen.style.display = 'none';
     gameScreen.style.display = 'block';
+    pushGameState();
     setupRound({ scenario: room.scenario, companies: room.companies, players: room.players, round: room.round }, true);
+    socket.emit('requestSync', { roomId: currentRoom });
   }
 });
 
@@ -210,6 +246,8 @@ function showRoomScreen() {
   loginScreen.style.display = 'none';
   roomScreen.style.display = 'block';
   displayRoomCode.textContent = currentRoom;
+  // 뒤로가기 이벤트를 위한 히스토리 추가
+  history.pushState({ screen: 'room' }, '');
 }
 
 startGameBtn.addEventListener('click', () => {
@@ -296,15 +334,35 @@ function showHintQuizSystem(data) {
   showHintSelectionScreen();
 }
 
-// 회사별 무지개색 & 서휘찬회사 검정색 고정 맵핑 (corefab, nextmemory, nanodesign, gwangseong, chemicalwave, packagingworld)
-const COMPANY_COLORS = {
-  'corefab': '#000000',
-  'nextmemory': '#ef4444',
-  'nanodesign': '#f97316',
-  'gwangseong': '#22c55e',
-  'chemicalwave': '#3b82f6',
-  'packagingworld': '#8b5cf6'
-};
+// 회사별 무지개색 & 서휘찬회사 검정색 고정 맵핑 함수 (대소문자/이름 기반 안전 매핑)
+const RAINBOW_PALETTE = ['#e11d48', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed'];
+
+function getCompanyColor(company) {
+  if (!company) return '#2563eb';
+  const idLower = (company.id || '').toLowerCase();
+  const name = company.name || '';
+  
+  // 서휘찬 다크파운드리(Shcdark)는 항상 검정색 고정
+  if (idLower.includes('shc') || name.includes('서휘찬') || idLower.includes('corefab')) {
+    return '#000000';
+  }
+  if (idLower.includes('jsw') || name.includes('정선우') || idLower.includes('nextmemory')) {
+    return '#ef4444'; // 빨강
+  }
+  if (idLower.includes('garden') || name.includes('서정원') || idLower.includes('nanodesign')) {
+    return '#f97316'; // 주황
+  }
+  if (idLower.includes('soap') || name.includes('이형주') || idLower.includes('gwangseong')) {
+    return '#22c55e'; // 초록
+  }
+  if (idLower.includes('park') || name.includes('박주빈') || idLower.includes('chemicalwave')) {
+    return '#3b82f6'; // 파랑
+  }
+  if (idLower.includes('we') || name.includes('위윤성') || idLower.includes('packagingworld')) {
+    return '#8b5cf6'; // 보라
+  }
+  return '#2563eb';
+}
 
 // 브라우저 뒤로가기 / 새로고침 시 홈화면 이동 복구 및 1인 플레이 편리성 지원
 window.addEventListener('popstate', (event) => {
@@ -333,20 +391,19 @@ function showHintSelectionScreen() {
   quizOptions.className = 'quiz-options hint-cards-container';
 
   window.COMPANIES.forEach(c => {
-    const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
+    const cardColor = getCompanyColor(c);
     const textColor = (cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' || cardColor === '#3b82f6') ? '#ffffff' : '#000000';
     const card = document.createElement('div');
     card.className = 'hint-card';
-    card.style.borderColor = cardColor;
     
-    // 카드 내부 구성 (앞면: 선택 유도, 뒷면: 회사이름)
+    // 카드 내부 구성 (앞면: 물음표 & HINT, 뒷면: 회사이름)
     card.innerHTML = `
       <div class="hint-card-inner">
-        <div class="hint-card-front" style="background: rgba(255, 255, 255, 0.05); border: 2px solid ${cardColor};">
+        <div class="hint-card-front" style="background: rgba(255, 255, 255, 0.08); border: 2.5px solid ${cardColor};">
           <span style="font-size: 2rem;">❓</span>
-          <span style="font-size: 0.85rem; margin-top: 5px; color: var(--text-muted);">HINT</span>
+          <span style="font-size: 0.85rem; margin-top: 5px; color: #cbd5e1; font-weight: bold;">HINT</span>
         </div>
-        <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor};">
+        <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
           <div class="hint-card-name">${c.name}</div>
         </div>
       </div>
@@ -355,7 +412,7 @@ function showHintSelectionScreen() {
     card.addEventListener('click', () => {
       // 선택한 회사의 힌트 즉시 해금
       const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
-      const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
+      const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
       
       selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
       selectedCompanyIdsForQuiz.push(c.id);
@@ -407,7 +464,7 @@ function submitRoundQuiz(quiz, selected, stage) {
 
   if (isCorrect) {
     // 맞췄을 때 힌트를 획득할 회사 선택하게 함 (카드 형태)
-    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold;">정답입니다!</span><br>${quiz.explain}<br><br><strong>힌트를 열람할 추가 회사를 선택하세요:</strong>`;
+    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold; font-size:1.1rem;">🎉 정답입니다!</span><br>${quiz.explain}<br><br><strong style="color:var(--accent);">👇 힌트를 열람할 추가 회사를 선택하세요 (앞뒤 3x2 중앙정렬 카드):</strong>`;
     
     const cardContainer = document.createElement('div');
     cardContainer.className = 'hint-cards-container';
@@ -417,24 +474,24 @@ function submitRoundQuiz(quiz, selected, stage) {
     window.COMPANIES.forEach(c => {
       if (!selectedCompanyIdsForQuiz.includes(c.id)) {
         hasAvailable = true;
-        const cardColor = COMPANY_COLORS[c.id] || '#ffffff';
-        const textColor = (cardColor === '#000000') ? '#ffffff' : '#000000';
+        const cardColor = getCompanyColor(c);
+        const textColor = (cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' || cardColor === '#3b82f6') ? '#ffffff' : '#000000';
         const card = document.createElement('div');
         card.className = 'hint-card';
         card.innerHTML = `
           <div class="hint-card-inner">
-            <div class="hint-card-front" style="background: rgba(255,255,255,0.05); border: 2px solid ${cardColor};">
+            <div class="hint-card-front" style="background: rgba(255,255,255,0.08); border: 2.5px solid ${cardColor};">
               <span style="font-size: 1.5rem;">💡</span>
-              <span style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">HINT</span>
+              <span style="font-size: 0.75rem; margin-top: 4px; color: #cbd5e1; font-weight: bold;">HINT</span>
             </div>
-            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor};">
-              <div class="hint-card-name" style="font-size:0.9rem;">${c.name}</div>
+            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
+              <div class="hint-card-name" style="font-size:0.95rem;">${c.name}</div>
             </div>
           </div>
         `;
         card.addEventListener('click', () => {
           const activeRoundData = currentRoundScenario.rounds.find(r => r.round === currentRoundNumber);
-          const rawHint = activeRoundData?.companyHints[c.id] || "힌트가 없습니다.";
+          const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
           selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
           selectedCompanyIdsForQuiz.push(c.id);
 
@@ -455,7 +512,7 @@ function submitRoundQuiz(quiz, selected, stage) {
     }
   } else {
     // 틀렸을 경우 즉시 퀴즈 종료 (더 이상 퀴즈 기회 없음)
-    quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold;">오답입니다.</span> (정답: ${quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer]})<br>${quiz.explain}`;
+    quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold; font-size:1.1rem;">❌ 오답입니다.</span> (정답: ${quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer]})<br>${quiz.explain}`;
     
     const finishBtn = document.createElement('button');
     finishBtn.textContent = '획득한 힌트 확인하기';
@@ -474,23 +531,21 @@ function showFinalQuizHintsSummary() {
   quizQuestion.style.display = 'none';
   quizResult.style.display = 'block';
 
-  // 퀴즈 결과 설명 란은 비우거나 확인 문구를 넣음
-  quizExplain.innerHTML = '<div style="margin-bottom: 10px; font-weight: bold; color: var(--success);">퀴즈 완료! 수집된 힌트 리스트:</div>';
+  quizExplain.innerHTML = '<div style="margin-bottom: 10px; font-weight: bold; color: var(--success); font-size:1.05rem;">수집된 힌트 목록:</div>';
 
-  // 힌트 가시성 개선: 하얀배경에 검정글씨 보색, 컴퍼니 컬러 보더 강조
+  // 가시성 대폭 향상: 흰색 카드 배경에 선명한 흑색 텍스트 & 좌측 굵은 컬러 태그
   const hintBox = document.getElementById('quiz-hint-box');
   hintBox.style.display = 'block';
   
-  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:12px; text-align:left; width:100%;">';
+  let summaryHtml = '<div style="display:flex; flex-direction:column; gap:14px; text-align:left; width:100%;">';
   selectedHints.forEach((sh, idx) => {
-    // 배경색이 어두우면 회사 이름을 흰색으로
-    const nameColor = (sh.color === '#000000' || sh.color === '#ef4444' || sh.color === '#8b5cf6' || sh.color === '#3b82f6') ? '#ffffff' : sh.color;
-    const bgColor = sh.color === '#000000' ? '#111111' : '#ffffff';
-    const textColor = sh.color === '#000000' ? '#ffffff' : '#000000';
     summaryHtml += `
-      <div style="background:${bgColor}; color:${textColor}; padding:15px; border-radius:10px; border-left:8px solid ${sh.color}; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
-        <strong style="color:${nameColor}; font-size:1.1rem; display:block; margin-bottom:5px;">[${sh.companyName}] 힌트</strong>
-        <p style="margin:0; line-height: 1.5; font-size:1.05rem; font-weight:700;">${sh.hint}</p>
+      <div style="background: #ffffff; color: #0f172a; padding: 16px 20px; border-radius: 12px; border-left: 10px solid ${sh.color}; border: 1.5px solid #e2e8f0; border-left-width: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${sh.color}; border:1px solid #000;"></span>
+          <strong style="color: #0f172a; font-size: 1.15rem; font-weight: 900;">[${sh.companyName}] 힌트</strong>
+        </div>
+        <p style="margin: 0; line-height: 1.6; font-size: 1.05rem; font-weight: 700; color: #1e293b;">${sh.hint}</p>
       </div>
     `;
   });
@@ -769,9 +824,9 @@ function renderStocks(companies, players, roundNum = 1) {
     const div = document.createElement('div');
     div.className = 'stock-card glass';
 
-    // 2라운드부터는 현재가 우측 끝에 추이 그래프 버튼 표시
+    // 2라운드부터는 현재가 우측 끝에 추이 그래프 버튼 표시 (flex space-between으로 오른쪽 정렬)
     const graphBtnHtml = roundNum >= 2
-      ? `<button class="single-graph-btn" data-id="${c.id}" style="float: right; margin-top: 5px; background: rgba(0,200,255,0.2); border: 1px solid var(--accent); color: var(--text-main); font-size: 0.85rem; cursor: pointer; padding: 4px 8px; border-radius: 6px;">📈 추이</button>`
+      ? `<button class="single-graph-btn" data-id="${c.id}" style="background: rgba(0,200,255,0.15); border: 1px solid var(--accent); color: var(--text-main); font-size: 0.85rem; cursor: pointer; padding: 5px 10px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">📈 추이</button>`
       : '';
 
     const savedQty = qtyBackup[c.id] !== undefined ? qtyBackup[c.id] : "1";
@@ -781,9 +836,9 @@ function renderStocks(companies, players, roundNum = 1) {
         <div class="stock-name">${c.name}</div>
         <div class="stock-desc">${c.desc}</div>
       </div>
-      <div class="stock-price-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
-        <div class="stock-price" style="margin: 0; font-size: 1.8rem; font-weight: 900;">${formatMoney(c.basePrice)}</div>
-        ${graphBtnHtml}
+      <div class="stock-price-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0; padding: 4px 0;">
+        <div class="stock-price" style="margin: 0; font-size: 1.8rem; font-weight: 900; color: #ffffff;">${formatMoney(c.basePrice)}</div>
+        ${graphBtnHtml ? `<div style="margin-left: auto;">${graphBtnHtml}</div>` : ''}
       </div>
       <div class="my-shares-badge" id="share-${c.id}">
         <span class="shares-label">보유 수량</span>

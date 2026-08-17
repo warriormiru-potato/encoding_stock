@@ -107,7 +107,7 @@ async function startServer() {
         players: [],
         status: 'lobby', // lobby, playing, result, randombox, drillgame, end
         round: 1,
-        maxRounds: 5,
+        maxRounds: 5, // 시나리오 길이에 맞춰 startGame 시 업데이트
         timer: GAME_CONFIG.SYSTEM.ROUND_TIME,
         timerInterval: null,
         scenario: null,
@@ -229,11 +229,20 @@ async function startServer() {
       if (room && room.status === 'playing') {
         socket.emit('timerUpdate', room.timer);
         socket.emit('updatePlayers', room.players);
+        socket.emit('updateCompanies', room.companies);
         const connectedPlayers = room.players.filter(p => p.socketId !== null);
         socket.emit('skipStatusUpdated', {
           votedCount: room.skipVotes ? room.skipVotes.length : 0,
           totalCount: connectedPlayers.length
         });
+        if (room.round >= 2 && room.activePlayerId) {
+          socket.emit('turnStarted', {
+            activePlayerId: room.activePlayerId,
+            turnTimer: room.turnTimer,
+            turnOrder: room.turnOrder,
+            activePlayerIndex: room.activePlayerIndex
+          });
+        }
       }
     });
 
@@ -279,6 +288,7 @@ async function startServer() {
       const requester = room?.players.find(p => p.socketId === socket.id);
       if (room && requester && room.host === requester.id) {
         room.scenario = SCENARIOS.find(s => Number(s.id) === Number(scenarioId));
+        room.maxRounds = (room.scenario && room.scenario.rounds && room.scenario.rounds.length > 0) ? room.scenario.rounds.length : 5;
         room.status = 'playing';
         room.round = 1;
         room.skipVotes = [];
@@ -382,16 +392,22 @@ async function startServer() {
       io.to(roomId).emit('updateCompanies', room.companies);
     });
 
-    // 턴 넘기기 (스킵)
     socket.on('skipMyTurn', ({ roomId }) => {
       const room = rooms[roomId];
       if (!room || room.status !== 'playing' || room.round < 2) return;
 
       const player = room.players.find(p => p.socketId === socket.id);
-      if (!player || room.activePlayerId !== player.id) return;
+      if (!player) return;
 
-      // 최소 15초 생존 룰
-      if (room.turnElapsedTime < 15) {
+      const isHost = (room.host === player.id);
+      const hostPlayer = room.players.find(p => p.id === room.host);
+      const isTestHost = (hostPlayer && hostPlayer.name === 'TEST') || (player.name === 'TEST');
+
+      // 방장인 경우 또는 본인 턴인 경우 스킵 가능
+      if (!isTestHost && room.activePlayerId !== player.id) return;
+
+      // 최소 15초 생존 룰 (단, TEST인 경우 즉시 스킵 가능)
+      if (!isTestHost && room.turnElapsedTime < 15) {
         socket.emit('errorMsg', '턴 시작 후 15초가 지나야 넘길 수 있습니다.');
         return;
       }
@@ -697,8 +713,8 @@ async function startServer() {
       if (!room) return;
       room.status = 'result';
 
-      const currentRoundData = room.scenario.rounds.find(r => r.round === room.round);
-      const changes = currentRoundData.changes;
+      const currentRoundData = room.scenario?.rounds?.find(r => r.round === room.round);
+      const changes = currentRoundData ? currentRoundData.changes : (room.scenario?.rounds?.[(room.round - 1) % (room.scenario.rounds.length || 1)]?.changes || {});
 
       // 이전 주식가치 보관 (인버스권, 레버리지권 정밀 계산용)
       const playerStockValuesPre = {};
