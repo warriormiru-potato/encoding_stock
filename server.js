@@ -357,8 +357,15 @@ async function startServer() {
           return;
         }
 
-        // 라운드별 주식 구매한도 체크 (엑셀 열 기준)
-        const maxBuyLimit = comp[`maxBuyR${room.round}`] || 9999;
+        // 라운드별 주식 구매한도 체크 (시나리오별 MaxJsw, MaxShc, MaxGar, MaxSoap, MaxPark, MaxWe 기준)
+        const currentRoundData = room.scenario?.rounds?.find(r => r.round === room.round);
+        let maxBuyLimit = 9999;
+        if (currentRoundData && currentRoundData.maxBuyLimits && currentRoundData.maxBuyLimits[companyId] !== undefined) {
+          maxBuyLimit = currentRoundData.maxBuyLimits[companyId];
+        } else if (comp[`maxBuyR${room.round}`] !== undefined) {
+          maxBuyLimit = comp[`maxBuyR${room.round}`];
+        }
+
         const currentBought = player.roundBuyCount[companyId] || 0;
         if (currentBought + qty > maxBuyLimit) {
           socket.emit('errorMsg', `이번 라운드 해당 주식의 구매 한도는 최대 ${maxBuyLimit}주입니다. (현재 구매량: ${currentBought}주)`);
@@ -539,17 +546,27 @@ async function startServer() {
         room.monopolizedStocks[targetCompanyId] = player.id;
         io.to(roomId).emit('systemAlert', `${player.name}님이 ${COMPANIES.find(c => c.id === targetCompanyId)?.name || targetCompanyId} 주식에 독점권을 선포했습니다! 이번 라운드에 다른 플레이어는 매수 불가.`);
       } else if (itemId === 'distorted') {
-        if (!targetPlayerId || !targetRound || (targetRound !== 4 && targetRound !== 5)) {
+        const roundNum = parseInt(targetRound, 10);
+        if (!targetPlayerId || !roundNum || (roundNum !== 4 && roundNum !== 5)) {
           socket.emit('errorMsg', '왜곡할 플레이어와 라운드(4 또는 5)를 올바르게 선택해 주세요.');
           return;
         }
+        const targetP = room.players.find(p => String(p.id) === String(targetPlayerId));
+        if (!targetP) {
+          socket.emit('errorMsg', '존재하지 않는 대상 플레이어입니다.');
+          return;
+        }
         room.distortedTruths.push({
-          targetPlayerId,
-          round: parseInt(targetRound, 10),
+          targetPlayerId: targetP.id,
+          round: roundNum,
           fromPlayerId: player.id
         });
-        const targetP = room.players.find(p => p.id === targetPlayerId);
-        io.to(roomId).emit('systemAlert', `누군가 ${targetP?.name || '특정 플레이어'}의 ${targetRound}라운드 힌트에 왜곡된 진실을 사용하였습니다!`);
+        io.to(roomId).emit('systemAlert', `누군가 ${targetP.name}의 ${roundNum}라운드 힌트에 왜곡된 진실을 사용하였습니다!`);
+
+        // 만약 랜덤박스 상태에서 왜곡된 진실을 설정 완료했다면 4라운드로 즉시 진행
+        if (room.status === 'randombox') {
+          proceedToNextRound(roomId);
+        }
       } else if (itemId === 'inverse') {
         room.activeInverses[player.id] = true;
         socket.emit('systemAlert', '인버스권이 활성화되었습니다. 라운드 종료 시 주가 하락폭만큼 이익이 됩니다.');

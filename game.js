@@ -233,6 +233,7 @@ socket.on('roomListUpdate', (rooms) => {
 });
 
 socket.on('updateLobby', (players) => {
+  window.currentRoomPlayers = players || [];
   playerCount.textContent = players.length;
   lobbyPlayers.innerHTML = '';
   players.forEach(p => {
@@ -330,8 +331,13 @@ function showHintQuizSystem(data) {
     return;
   }
 
-  // 1단계: 힌트 선택 화면
-  showHintSelectionScreen();
+  // 1라운드: 기본 힌트 1개 선택 화면 제공 -> 퀴즈 2회 도전
+  if (data.round === 1) {
+    showHintSelectionScreen();
+  } else {
+    // 3, 4, 5라운드: 기본 힌트 없이 퀴즈를 맞추어야 힌트를 획득할 수 있도록 퀴즈 1단계부터 시작
+    startHintQuizStage(1);
+  }
 }
 
 // 회사별 무지개색 & 서휘찬회사 검정색 고정 맵핑 함수 (대소문자/이름 기반 안전 매핑)
@@ -793,6 +799,7 @@ socket.on('distortedGainedAlert', ({ playerName }) => {
 });
 
 function renderPlayers(players) {
+  window.currentRoomPlayers = players || [];
   const myData = players.find(p => p.id === myPlayerId);
   if (myData) {
     me = myData;
@@ -1063,7 +1070,8 @@ function showMinigameCardSelection(allowedCount) {
           if (nextRemaining > 0) {
             renderChoices(nextRemaining);
           } else {
-            showFinalQuizHintsSummary();
+            // 2라운드 미니게임 카드 선택 완료 후 퀴즈 1회 도전 제공
+            startPostMinigameQuiz();
           }
         });
         quizOptions.appendChild(card);
@@ -1076,18 +1084,115 @@ function showMinigameCardSelection(allowedCount) {
 
 function showMinigameFailureSummary() {
   document.getElementById('quiz-modal-title').textContent = '⚠️ 미니게임 결과';
-  document.getElementById('quiz-modal-desc').textContent = '검사 점수가 800점 미만으로 힌트 획득에 실패하였습니다.';
+  document.getElementById('quiz-modal-desc').textContent = '검사 점수가 800점 미만으로 미니게임 힌트 획득에 실패하였습니다.';
   quizOptions.innerHTML = '';
   quizQuestion.style.display = 'none';
   quizResult.style.display = 'block';
 
-  quizExplain.innerHTML = '<div style="color:var(--danger); font-weight:bold; font-size:1.05rem;">이번 라운드는 추가 힌트 없이 거래가 시작됩니다.</div>';
+  quizExplain.innerHTML = '<div style="color:var(--warning); font-weight:bold; font-size:1.05rem; margin-bottom:15px;">하지만 상식 퀴즈를 맞추면 힌트를 1개 만회할 수 있습니다!</div>';
   const hintBox = document.getElementById('quiz-hint-box');
   hintBox.style.display = 'none';
 
   closeQuizBtn.style.display = 'block';
-  closeQuizBtn.textContent = '확인 (거래 개시)';
+  closeQuizBtn.textContent = '퀴즈 풀고 힌트 도전하기';
+  closeQuizBtn.onclick = () => {
+    closeQuizBtn.onclick = null;
+    startPostMinigameQuiz();
+  };
   quizModal.style.display = 'flex';
+}
+
+function startPostMinigameQuiz() {
+  quizOptions.className = 'quiz-options';
+  let qCandidates = window.QUIZ_BANK;
+  const qIdx = Math.floor(Math.random() * qCandidates.length);
+  const quizObj = qCandidates[qIdx];
+
+  document.getElementById('quiz-modal-title').innerHTML = `<span class="quiz-step-badge">📝 [보너스 퀴즈] 힌트 추가 해금 도전!</span><br>상식 퀴즈`;
+  document.getElementById('quiz-modal-desc').textContent = quizObj.question;
+
+  quizQuestion.style.display = 'none';
+  quizOptions.innerHTML = '';
+  quizResult.style.display = 'none';
+  closeQuizBtn.style.display = 'none';
+
+  if (quizObj.type === 'OX') {
+    ['O', 'X'].forEach(opt => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.addEventListener('click', () => submitPostMinigameQuiz(quizObj, opt));
+      quizOptions.appendChild(btn);
+    });
+  } else {
+    quizObj.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.addEventListener('click', () => submitPostMinigameQuiz(quizObj, idx));
+      quizOptions.appendChild(btn);
+    });
+  }
+}
+
+function submitPostMinigameQuiz(quiz, selected) {
+  const isCorrect = (quiz.answer === selected);
+  quizOptions.innerHTML = '';
+  quizResult.style.display = 'block';
+
+  if (isCorrect) {
+    quizExplain.innerHTML = `<span style="color:var(--success); font-weight:bold; font-size:1.1rem;">🎉 정답입니다!</span><br>${quiz.explain}<br><br><strong style="color:var(--accent);">👇 힌트를 열람할 회사를 1개 선택하세요:</strong>`;
+    
+    const cardContainer = document.createElement('div');
+    cardContainer.className = 'hint-cards-container';
+    cardContainer.style.marginTop = '15px';
+    
+    let hasAvailable = false;
+    window.COMPANIES.forEach(c => {
+      if (!selectedCompanyIdsForQuiz.includes(c.id)) {
+        hasAvailable = true;
+        const cardColor = getCompanyColor(c);
+        const textColor = (cardColor === '#000000' || cardColor === '#ef4444' || cardColor === '#8b5cf6' || cardColor === '#3b82f6') ? '#ffffff' : '#000000';
+        const card = document.createElement('div');
+        card.className = 'hint-card';
+        card.innerHTML = `
+          <div class="hint-card-inner">
+            <div class="hint-card-front" style="background: rgba(255,255,255,0.08); border: 2.5px solid ${cardColor};">
+              <span style="font-size: 1.5rem;">💡</span>
+              <span style="font-size: 0.75rem; margin-top: 4px; color: #cbd5e1; font-weight: bold;">HINT</span>
+            </div>
+            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
+              <div class="hint-card-name" style="font-size:0.95rem;">${c.name}</div>
+            </div>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          const scenarioObj = currentRoundScenario || (window.SCENARIOS && window.SCENARIOS[0]);
+          const activeRoundData = scenarioObj?.rounds?.find(r => r.round === 2) || scenarioObj?.rounds?.[1] || scenarioObj?.rounds?.[0];
+          const rawHint = activeRoundData?.companyHints ? (activeRoundData.companyHints[c.id] || activeRoundData.companyHints[c.id.toLowerCase()] || Object.entries(activeRoundData.companyHints).find(([k]) => k.toLowerCase() === c.id.toLowerCase())?.[1] || "힌트가 없습니다.") : "힌트가 없습니다.";
+          selectedHints.push({ companyName: c.name, hint: rawHint, color: cardColor });
+          selectedCompanyIdsForQuiz.push(c.id);
+
+          showFinalQuizHintsSummary();
+        });
+        cardContainer.appendChild(card);
+      }
+    });
+    
+    if (hasAvailable) {
+      quizExplain.appendChild(cardContainer);
+    } else {
+      showFinalQuizHintsSummary();
+    }
+  } else {
+    quizExplain.innerHTML = `<span style="color:var(--danger); font-weight:bold; font-size:1.1rem;">❌ 오답입니다.</span> (정답: ${quiz.type === 'OX' ? quiz.answer : quiz.options[quiz.answer]})<br>${quiz.explain}`;
+    
+    const finishBtn = document.createElement('button');
+    finishBtn.textContent = '획득한 힌트 확인하기';
+    finishBtn.style.marginTop = '15px';
+    finishBtn.addEventListener('click', () => {
+      showFinalQuizHintsSummary();
+    });
+    quizExplain.appendChild(finishBtn);
+  }
 }
 
 // 3라운드 드릴 미니게임 이벤트 리스너
@@ -1166,7 +1271,9 @@ function openDistortedTruthSetup(playersList) {
   const playerSelect = document.getElementById('item-target-player');
   playerSelect.innerHTML = '';
 
-  const candidates = (playersList && playersList.length > 0) ? playersList : (window.allPlayers || []);
+  const candidates = (playersList && playersList.length > 0) 
+    ? playersList 
+    : ((window.currentRoomPlayers && window.currentRoomPlayers.length > 0) ? window.currentRoomPlayers : (window.allPlayers || []));
   
   if (candidates.length > 0) {
     candidates.forEach(p => {
@@ -1178,7 +1285,7 @@ function openDistortedTruthSetup(playersList) {
   } else {
     const opt = document.createElement('option');
     opt.value = myPlayerId;
-    opt.textContent = "테스트 플레이어";
+    opt.textContent = (me && me.name) ? me.name : "플레이어";
     playerSelect.appendChild(opt);
   }
 
@@ -1196,11 +1303,6 @@ function openDistortedTruthSetup(playersList) {
     });
 
     modal.style.display = 'none';
-
-    // 설정 완료 후 호스트가 다음 라운드 진행
-    if (isHost) {
-      socket.emit('nextRound', { roomId: currentRoom });
-    }
   };
 }
 

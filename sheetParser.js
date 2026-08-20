@@ -119,6 +119,7 @@ async function loadGameData() {
   const rawScenarios = parseRawData(scCsv);
   const scMap = {};
   rawScenarios.forEach(r => {
+    if (!r.scenarioId || isNaN(parseInt(r.scenarioId, 10))) return;
     const sId = parseInt(r.scenarioId, 10);
     if (!scMap[sId]) {
       scMap[sId] = {
@@ -155,10 +156,45 @@ async function loadGameData() {
       }
     });
 
+    // Max Buy limits: MaxJsw, MaxShc, MaxGar, MaxSoap, MaxPark, MaxWe (or MaxWec, Max...)
+    const maxBuyLimits = {};
+    const maxAliasMap = {
+      'maxjsw': 'Jswtech',
+      'maxshc': 'Shcdark',
+      'maxgar': 'gardensemi',
+      'maxsoap': 'Soap',
+      'maxpark': 'Parkjubin',
+      'maxwe': 'Weclass',
+      'maxwec': 'Weclass',
+      'maxweclass': 'Weclass'
+    };
+
+    Object.keys(r).forEach(k => {
+      if (k && k.trim() !== '') {
+        const kLower = k.trim().toLowerCase();
+        if (kLower.startsWith('max')) {
+          let targetCompId = maxAliasMap[kLower];
+          if (!targetCompId) {
+            const rawSuffix = kLower.replace(/^max_?/, '');
+            if (companyIdMap[rawSuffix]) {
+              targetCompId = companyIdMap[rawSuffix];
+            } else {
+              const foundKey = Object.keys(companyIdMap).find(cid => cid.startsWith(rawSuffix) || rawSuffix.startsWith(cid.substring(0, 3)));
+              if (foundKey) targetCompId = companyIdMap[foundKey];
+            }
+          }
+          if (targetCompId && r[k] !== undefined && r[k] !== '' && !isNaN(parseInt(r[k], 10))) {
+            maxBuyLimits[targetCompId] = parseInt(r[k], 10);
+          }
+        }
+      }
+    });
+
     scMap[sId].rounds.push({
       round: parseInt(r.round, 10),
       companyHints: companyHints,
-      changes: changes
+      changes: changes,
+      maxBuyLimits: maxBuyLimits
     });
   });
 
