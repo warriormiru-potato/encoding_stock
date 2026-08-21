@@ -344,13 +344,8 @@ function showHintQuizSystem(data) {
     return;
   }
 
-  // 1라운드: 기본 힌트 1개 선택 화면 제공 -> 퀴즈 2회 도전
-  if (data.round === 1) {
-    showHintSelectionScreen();
-  } else {
-    // 3, 4, 5라운드: 기본 힌트 없이 퀴즈를 맞추어야 힌트를 획득할 수 있도록 퀴즈 1단계부터 시작
-    startHintQuizStage(1);
-  }
+  // 1, 3, 4, 5 라운드 모두 먼저 보고 싶은 기본 힌트 1개 카드를 선택하고 퀴즈를 풀 수 있도록 통일
+  showHintSelectionScreen();
 }
 
 // 회사별 무지개색 & 서휘찬회사 검정색 고정 맵핑 함수 (대소문자/이름 기반 안전 매핑)
@@ -396,7 +391,7 @@ function pushGameState() {
 }
 
 function showHintSelectionScreen() {
-  document.getElementById('quiz-modal-title').textContent = `💡 라운드 힌트 시작 선택`;
+  document.getElementById('quiz-modal-title').textContent = `💡 Round ${currentRoundNumber} 힌트 시작 선택`;
   document.getElementById('quiz-modal-desc').textContent = '라운드를 시작하기 전, 6개 주식 중 힌트를 보고 싶은 회사를 1개 선택하세요!';
   
   quizQuestion.style.display = 'none';
@@ -440,6 +435,7 @@ function showHintSelectionScreen() {
 }
 
 function startHintQuizStage(stage) {
+  quizModal.style.display = 'flex';
   // 클래스 복구
   quizOptions.className = 'quiz-options';
   

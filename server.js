@@ -666,7 +666,7 @@ async function startServer() {
           }
         }, 1000);
       } else {
-        // 2라운드부터는 턴제 거래 진행
+        // 2라운드부터는 턴제 거래 진행 (각 플레이어별 45초 턴 타이머 즉시 시작)
         setupBreakingNews(room);
         // 순서: 직전 라운드 수익률(yield)이 낮은 순서대로
         room.turnOrder = [...room.players]
@@ -674,19 +674,7 @@ async function startServer() {
           .map(p => p.id);
 
         room.activePlayerIndex = 0;
-
-        // 2라운드는 불량 칩 미니게임 및 힌트 퀴즈 단계가 있으므로 미니게임 시간(약 45초)을 충분히 보장한 후 첫 턴 시작
-        if (room.round === 2) {
-          if (room.timerInterval) clearInterval(room.timerInterval);
-          if (room.minigameDelayTimeout) clearTimeout(room.minigameDelayTimeout);
-          room.minigameDelayTimeout = setTimeout(() => {
-            if (room.status === 'playing' && room.round === 2) {
-              startTurn(roomId);
-            }
-          }, 45000);
-        } else {
-          startTurn(roomId);
-        }
+        startTurn(roomId);
       }
     }
 
