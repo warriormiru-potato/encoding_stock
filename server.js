@@ -486,18 +486,13 @@ async function startServer() {
                             (room.host === socket.id) ||
                             (room.players.some(p => p.socketId === socket.id && (p.id === room.host || p.isAdmin)));
 
-      // 어드민 / 호스트인 경우: 언제든지 즉시 라운드 강제 스킵
+      // 어드민 / 호스트인 경우: 언제든지 즉시 라운드 강제 스킵 (결과 화면은 10초 보장)
       if (isAdminOrHost) {
         if (room.timerInterval) {
           clearInterval(room.timerInterval);
           room.timerInterval = null;
         }
         endRound(roomId);
-        io.to(roomId).emit('roundSkipped', { nextRoundIn: 2 });
-        if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
-        room.autoSkipTimeout = setTimeout(() => {
-          proceedToNextRound(roomId);
-        }, 2000);
         return;
       }
 
@@ -529,11 +524,6 @@ async function startServer() {
           room.timerInterval = null;
         }
         endRound(roomId);
-        io.to(roomId).emit('roundSkipped', { nextRoundIn: 8 });
-        if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
-        room.autoSkipTimeout = setTimeout(() => {
-          proceedToNextRound(roomId);
-        }, 8000);
       }
     });
 
@@ -562,8 +552,18 @@ async function startServer() {
           socket.emit('errorMsg', '독점할 종목을 선택해 주세요.');
           return;
         }
-        room.monopolizedStocks[targetCompanyId] = player.id;
-        io.to(roomId).emit('systemAlert', `${player.name}님이 ${COMPANIES.find(c => c.id === targetCompanyId)?.name || targetCompanyId} 주식에 독점권을 선포했습니다! 이번 라운드에 다른 플레이어는 매수 불가.`);
+        const q = String(targetCompanyId).trim().toLowerCase();
+        const foundComp = COMPANIES.find(c => 
+          c.id.toLowerCase() === q ||
+          c.name.toLowerCase().includes(q) ||
+          q.includes(c.name.toLowerCase()) ||
+          q.includes(c.id.toLowerCase())
+        );
+        const resolvedId = foundComp ? foundComp.id : targetCompanyId;
+        const compName = foundComp ? foundComp.name : targetCompanyId;
+
+        room.monopolizedStocks[resolvedId] = player.id;
+        io.to(roomId).emit('systemAlert', `${player.name}님이 [${compName}] 주식에 독점권을 선포했습니다! 이번 라운드에 다른 플레이어는 매수 불가.`);
       } else if (itemId === 'distorted') {
         const roundNum = parseInt(targetRound, 10);
         if (!targetPlayerId || !roundNum || (roundNum !== 4 && roundNum !== 5)) {
@@ -667,6 +667,7 @@ async function startServer() {
         }, 1000);
       } else {
         // 2라운드부터는 턴제 거래 진행
+        setupBreakingNews(room);
         // 순서: 직전 라운드 수익률(yield)이 낮은 순서대로
         room.turnOrder = [...room.players]
           .sort((a, b) => a.yield - b.yield)
@@ -715,6 +716,7 @@ async function startServer() {
           time: room.turnTimer,
           elapsed: room.turnElapsedTime
         });
+        checkBreakingNews(room);
 
         if (room.turnTimer <= 0) {
           clearInterval(room.timerInterval);
@@ -737,7 +739,7 @@ async function startServer() {
       }
     }
 
-    // 뉴스 설정
+    // 뉴스 설정 (1~5 모든 라운드 발생)
     function setupBreakingNews(room) {
       room.breakingNewsSchedule = [];
       const availableNews = [...BREAKING_NEWS];
@@ -753,21 +755,22 @@ async function startServer() {
           selectedNewsItems.push(news);
           selectedCompanyIds.add(news.companyId);
         }
-        if (selectedNewsItems.length >= 4) break;
+        if (selectedNewsItems.length >= 6) break;
       }
 
       if (selectedNewsItems.length > 0) {
-        const targetNewsCount = Math.min(Math.floor(Math.random() * 2) + 3, selectedNewsItems.length);
+        const targetNewsCount = Math.min(Math.floor(Math.random() * 2) + 4, selectedNewsItems.length); // 4~5개 뉴스 발생
         const finalNewsSelection = selectedNewsItems.slice(0, targetNewsCount);
-        const firstTriggerTime = Math.floor(Math.random() * (175 - 150 + 1)) + 150;
-        const usedTimes = new Set([firstTriggerTime]);
+        
+        // 1라운드(180초) 또는 턴제(턴당 45초)에 맞춘 타이머 시간대 분배
+        const maxTime = room.round === 1 ? 170 : 40;
+        const minTime = room.round === 1 ? 15 : 5;
+        const usedTimes = new Set();
 
-        room.breakingNewsSchedule.push({ time: firstTriggerTime, news: finalNewsSelection[0] });
-
-        for (let i = 1; i < finalNewsSelection.length; i++) {
-          let triggerTime = Math.floor(Math.random() * (149 - 10 + 1)) + 10;
+        for (let i = 0; i < finalNewsSelection.length; i++) {
+          let triggerTime = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
           while (usedTimes.has(triggerTime)) {
-            triggerTime = Math.floor(Math.random() * (149 - 10 + 1)) + 10;
+            triggerTime = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
           }
           usedTimes.add(triggerTime);
           room.breakingNewsSchedule.push({ time: triggerTime, news: finalNewsSelection[i] });
@@ -776,8 +779,9 @@ async function startServer() {
     }
 
     function checkBreakingNews(room) {
+      const currentCheckTime = room.round === 1 ? room.timer : room.turnTimer;
       room.breakingNewsSchedule.forEach(sch => {
-        if (sch.time === room.timer) {
+        if (sch.time === currentCheckTime) {
           const baseImpact = Math.floor(Math.random() * (sch.news.impact.max - sch.news.impact.min + 1)) + sch.news.impact.min;
           const impact = Math.round(baseImpact * 1.2);
           const comp = room.companies.find(c => c.id === sch.news.companyId);
@@ -886,12 +890,13 @@ async function startServer() {
     function rollRandomBoxForEveryone(roomId) {
       const room = rooms[roomId];
       if (!room) return;
+      if (room.status === 'randombox') return; // 중복 호출 방지
       room.status = 'randombox';
       const rolls = {};
       room.players.forEach(p => {
         delete p.itemConfirmed;
         const rolled = ITEMS[Math.floor(Math.random() * ITEMS.length)];
-        p.items.push(rolled);
+        p.items = [rolled]; // 항상 정확히 1개의 아이템만 보유하도록 보장
         rolls[p.id] = rolled;
         if (rolled.id === 'distorted') {
           io.to(roomId).emit('distortedGainedAlert', { playerName: p.name });

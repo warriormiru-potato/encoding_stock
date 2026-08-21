@@ -783,12 +783,20 @@ function triggerItemUsage(itemId) {
       document.getElementById('item-use-modal').style.display = 'none';
     };
   } else if (itemId === 'monopoly') {
-    const compName = prompt("독점할 회사의 영문 ID를 적어주세요 (Jswtech, Shcdark, gardensemi, Soap, Parkjubin, Weclass):");
-    if (compName) {
+    const compInput = prompt("독점할 회사의 한글 이름 또는 영문명을 입력해주세요:\n(예: 위윤성, 서휘찬, 이형주, 정선우, 서정원, 박주빈)");
+    if (compInput && compInput.trim()) {
+      const q = compInput.trim().toLowerCase();
+      const matched = window.COMPANIES.find(c => 
+        c.name.toLowerCase().includes(q) || 
+        c.id.toLowerCase() === q ||
+        q.includes(c.name.toLowerCase()) ||
+        q.includes(c.id.toLowerCase())
+      );
+      const targetId = matched ? matched.id : compInput.trim();
       socket.emit('useItem', {
         roomId: currentRoom,
         itemId: 'monopoly',
-        targetCompanyId: compName
+        targetCompanyId: targetId
       });
     }
   } else {
