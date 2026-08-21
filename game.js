@@ -276,10 +276,21 @@ function setupRound(data, isReconnect = false) {
   gameScreen.style.display = 'block';
   viewHintBtn.style.display = 'none';
 
+  const adminBanner = document.getElementById('admin-observer-banner');
+  if (adminBanner) {
+    adminBanner.style.display = (me && me.isAdmin) ? 'block' : 'none';
+  }
+
   hasVotedCurrentRound = false;
-  skipRoundBtn.disabled = true;
+  skipRoundBtn.disabled = false;
   skipRoundBtn.classList.remove('voted');
-  skipRoundBtn.style.display = data.round === 1 ? 'block' : 'none'; // 1라운드에만 전원 스킵투표 표시
+  if (me && me.isAdmin) {
+    skipRoundBtn.style.display = 'block';
+    skipRoundBtn.textContent = '⚡ [어드민] 라운드 강제 스킵';
+  } else {
+    skipRoundBtn.style.display = data.round === 1 ? 'block' : 'none';
+    skipRoundBtn.textContent = '⏩ 라운드 스킵 (0/0)';
+  }
 
   document.getElementById('auto-next-round-notice').style.display = 'none';
   if (skipCountdownInterval) {
@@ -290,8 +301,8 @@ function setupRound(data, isReconnect = false) {
   if (data.scenario) scenarioTitle.textContent = data.scenario.title;
   roundIndicator.textContent = `Round ${data.round} / 5`;
 
-  // 4라운드에만 아이템 슬롯 노출
-  if (data.round === 4) {
+  // 4라운드에만 아이템 슬롯 노출 (어드민 제외)
+  if (data.round === 4 && (!me || !me.isAdmin)) {
     myItemsCard.style.display = 'block';
   } else {
     myItemsCard.style.display = 'none';
@@ -308,7 +319,7 @@ function setupRound(data, isReconnect = false) {
   renderStocks(data.companies, data.players, data.round);
   updateItemsDisplay(data.players);
 
-  if (!isReconnect) {
+  if (!isReconnect && (!me || !me.isAdmin)) {
     showHintQuizSystem(data);
   }
 }
@@ -320,6 +331,8 @@ let currentRoundNumber = 1;
 let selectedCompanyIdsForQuiz = [];
 
 function showHintQuizSystem(data) {
+  if (me && me.isAdmin) return; // 어드민은 퀴즈 및 힌트 팝업 대상에서 제외
+
   currentRoundScenario = data.scenario || (window.SCENARIOS && window.SCENARIOS[0]) || null;
   currentRoundNumber = data.round || 1;
   selectedHints = [];
@@ -402,16 +415,11 @@ function showHintSelectionScreen() {
     const card = document.createElement('div');
     card.className = 'hint-card';
     
-    // 카드 내부 구성 (앞면: 물음표 & HINT, 뒷면: 회사이름)
+    // 카드 내부 구성 (회사이름 즉시 노출)
     card.innerHTML = `
-      <div class="hint-card-inner">
-        <div class="hint-card-front" style="background: rgba(255, 255, 255, 0.08); border: 2.5px solid ${cardColor};">
-          <span style="font-size: 2rem;">❓</span>
-          <span style="font-size: 0.85rem; margin-top: 5px; color: #cbd5e1; font-weight: bold;">HINT</span>
-        </div>
-        <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
-          <div class="hint-card-name">${c.name}</div>
-        </div>
+      <div class="hint-card-inner" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'}; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);">
+        <div class="hint-card-name" style="font-size: 1.1rem; font-weight: 900;">${c.name}</div>
+        <span style="font-size: 0.78rem; margin-top: 6px; opacity: 0.85; font-weight: bold;">💡 힌트 열람</span>
       </div>
     `;
 
@@ -486,14 +494,9 @@ function submitRoundQuiz(quiz, selected, stage) {
         const card = document.createElement('div');
         card.className = 'hint-card';
         card.innerHTML = `
-          <div class="hint-card-inner">
-            <div class="hint-card-front" style="background: rgba(255,255,255,0.08); border: 2.5px solid ${cardColor};">
-              <span style="font-size: 1.5rem;">💡</span>
-              <span style="font-size: 0.75rem; margin-top: 4px; color: #cbd5e1; font-weight: bold;">HINT</span>
-            </div>
-            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
-              <div class="hint-card-name" style="font-size:0.95rem;">${c.name}</div>
-            </div>
+          <div class="hint-card-inner" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'}; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);">
+            <div class="hint-card-name" style="font-size:1.05rem; font-weight: 900;">${c.name}</div>
+            <span style="font-size: 0.75rem; margin-top: 4px; opacity: 0.85; font-weight: bold;">💡 힌트 선택</span>
           </div>
         `;
         card.addEventListener('click', () => {
@@ -806,16 +809,24 @@ function renderPlayers(players) {
     myNameEl.textContent = me.name;
     myCashEl.textContent = formatMoney(me.cash);
     myTotalAssetEl.textContent = formatMoney(me.totalAsset);
+  } else if (me && me.isAdmin) {
+    myNameEl.textContent = me.name || '어드민 (관전자)';
+    myCashEl.textContent = '- (관전 중)';
+    myTotalAssetEl.textContent = '- (관전 중)';
   }
 
   const sorted = [...players].sort((a, b) => b.totalAsset - a.totalAsset);
   liveRanking.innerHTML = '';
-  sorted.forEach((p, idx) => {
-    const li = document.createElement('li');
-    li.className = 'ranking-item';
-    li.innerHTML = `<span>${idx + 1}위: ${p.name}</span> <span>${formatMoney(p.totalAsset)}</span>`;
-    liveRanking.appendChild(li);
-  });
+  if (sorted.length === 0) {
+    liveRanking.innerHTML = '<li class="ranking-item" style="color:var(--text-muted); font-size:0.9rem;">참여 플레이어가 없습니다.</li>';
+  } else {
+    sorted.forEach((p, idx) => {
+      const li = document.createElement('li');
+      li.className = 'ranking-item';
+      li.innerHTML = `<span>${idx + 1}위: ${p.name}</span> <span>${formatMoney(p.totalAsset)}</span>`;
+      liveRanking.appendChild(li);
+    });
+  }
 }
 
 function renderStocks(companies, players, roundNum = 1) {
@@ -829,7 +840,8 @@ function renderStocks(companies, players, roundNum = 1) {
   });
 
   stocksPanel.innerHTML = '';
-  const myData = players.find(p => p.id === myPlayerId) || me;
+  const myData = players.find(p => p.id === myPlayerId) || (me && !me.isAdmin ? me : null);
+  const isObserver = (me && me.isAdmin);
 
   companies.forEach(c => {
     const div = document.createElement('div');
@@ -841,6 +853,20 @@ function renderStocks(companies, players, roundNum = 1) {
       : '';
 
     const savedQty = qtyBackup[c.id] !== undefined ? qtyBackup[c.id] : "1";
+    const sharesBadgeHtml = isObserver
+      ? `<div class="my-shares-badge" id="share-${c.id}"><span class="shares-label">구분</span><span class="shares-count" style="color:#fbbf24;">관전자</span></div>`
+      : `<div class="my-shares-badge" id="share-${c.id}"><span class="shares-label">보유 수량</span><span class="shares-count">${myData ? (myData.shares[c.id] || 0) : 0}주</span></div>`;
+
+    const tradeControlsHtml = isObserver
+      ? `<div class="trade-controls" style="justify-content: center; color: #fbbf24; font-weight: bold; font-size: 0.9rem; padding-top: 10px; border-top: 1.5px dashed rgba(255,255,255,0.08);">🛡️ 어드민 관전 모드 (거래 제외)</div>`
+      : `
+        <div class="trade-controls">
+          <span class="qty-label">주문수량</span>
+          <input type="number" id="trade-qty-${c.id}" value="${savedQty}" min="1" class="qty-input" />
+          <button class="btn-buy" data-id="${c.id}">매수</button>
+          <button class="btn-danger btn-sell" data-id="${c.id}">매도</button>
+        </div>
+      `;
 
     div.innerHTML = `
       <div style="position:relative;">
@@ -851,16 +877,8 @@ function renderStocks(companies, players, roundNum = 1) {
         <div class="stock-price" style="margin: 0; font-size: 1.8rem; font-weight: 900; color: #ffffff;">${formatMoney(c.basePrice)}</div>
         ${graphBtnHtml ? `<div style="margin-left: auto;">${graphBtnHtml}</div>` : ''}
       </div>
-      <div class="my-shares-badge" id="share-${c.id}">
-        <span class="shares-label">보유 수량</span>
-        <span class="shares-count">${myData.shares[c.id]}주</span>
-      </div>
-      <div class="trade-controls">
-        <span class="qty-label">주문수량</span>
-        <input type="number" id="trade-qty-${c.id}" value="${savedQty}" min="1" class="qty-input" />
-        <button class="btn-buy" data-id="${c.id}">매수</button>
-        <button class="btn-danger btn-sell" data-id="${c.id}">매도</button>
-      </div>
+      ${sharesBadgeHtml}
+      ${tradeControlsHtml}
     `;
     stocksPanel.appendChild(div);
   });
@@ -1047,14 +1065,9 @@ function showMinigameCardSelection(allowedCount) {
         const card = document.createElement('div');
         card.className = 'hint-card';
         card.innerHTML = `
-          <div class="hint-card-inner">
-            <div class="hint-card-front" style="background: rgba(255, 255, 255, 0.08); border: 2.5px solid ${cardColor};">
-              <span style="font-size: 2rem;">💡</span>
-              <span style="font-size: 0.85rem; margin-top: 5px; color: #cbd5e1; font-weight: bold;">HINT</span>
-            </div>
-            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
-              <div class="hint-card-name">${c.name}</div>
-            </div>
+          <div class="hint-card-inner" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'}; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);">
+            <div class="hint-card-name" style="font-size: 1.1rem; font-weight: 900;">${c.name}</div>
+            <span style="font-size: 0.78rem; margin-top: 6px; opacity: 0.85; font-weight: bold;">💡 힌트 선택</span>
           </div>
         `;
 
@@ -1154,14 +1167,9 @@ function submitPostMinigameQuiz(quiz, selected) {
         const card = document.createElement('div');
         card.className = 'hint-card';
         card.innerHTML = `
-          <div class="hint-card-inner">
-            <div class="hint-card-front" style="background: rgba(255,255,255,0.08); border: 2.5px solid ${cardColor};">
-              <span style="font-size: 1.5rem;">💡</span>
-              <span style="font-size: 0.75rem; margin-top: 4px; color: #cbd5e1; font-weight: bold;">HINT</span>
-            </div>
-            <div class="hint-card-back" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'};">
-              <div class="hint-card-name" style="font-size:0.95rem;">${c.name}</div>
-            </div>
+          <div class="hint-card-inner" style="background: ${cardColor}; color: ${textColor}; border: 2.5px solid ${cardColor === '#000000' ? '#ffffff' : '#000000'}; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);">
+            <div class="hint-card-name" style="font-size:1.05rem; font-weight: 900;">${c.name}</div>
+            <span style="font-size: 0.75rem; margin-top: 4px; opacity: 0.85; font-weight: bold;">💡 힌트 선택</span>
           </div>
         `;
         card.addEventListener('click', () => {
@@ -1376,6 +1384,28 @@ function renderStockChart(companies, changes) {
   });
 }
 
+function tryNextGifSource(imgEl) {
+  try {
+    const candidates = JSON.parse(imgEl.getAttribute('data-candidates') || '[]');
+    if (candidates.length > 0) {
+      const nextSrc = candidates.shift();
+      imgEl.setAttribute('data-candidates', JSON.stringify(candidates));
+      imgEl.src = nextSrc;
+    } else {
+      imgEl.style.display = 'none';
+      if (imgEl.nextElementSibling) {
+        imgEl.nextElementSibling.style.display = 'block';
+      }
+    }
+  } catch (e) {
+    imgEl.style.display = 'none';
+    if (imgEl.nextElementSibling) {
+      imgEl.nextElementSibling.style.display = 'block';
+    }
+  }
+}
+window.tryNextGifSource = tryNextGifSource;
+
 function renderCharacterGifs(companies, changes) {
   const leftPanel = document.getElementById('chart-left-characters');
   const rightPanel = document.getElementById('chart-right-characters');
@@ -1392,14 +1422,31 @@ function renderCharacterGifs(companies, changes) {
     const pct = changes ? (changes[c.id] || 0) : 0;
     const isUp = pct > 0;
     const sign = isUp ? '+' : '';
-    const gifFile = `assets/gifs/${cidLower}_${isUp ? 'up' : 'down'}.gif`;
+    const emotion = isUp ? 'happy' : 'sad';
+    const legacyEmotion = isUp ? 'up' : 'down';
+    const shortPrefix = c.id ? c.id.substring(0, 3) : '';
+
+    const candidateSources = [
+      `assets/gifs/${c.id}/${c.id}${emotion}.gif`,
+      `assets/gifs/${c.id}/${shortPrefix}${emotion}.gif`,
+      `assets/gifs/${c.id}/${emotion}.gif`,
+      `assets/gifs/${c.id}/${c.id}_${legacyEmotion}.gif`,
+      `assets/gifs/${cidLower}/${cidLower}${emotion}.gif`,
+      `assets/gifs/${cidLower}/${shortPrefix.toLowerCase()}${emotion}.gif`,
+      `assets/gifs/${c.id}${emotion}.gif`,
+      `assets/gifs/${shortPrefix}${emotion}.gif`,
+      `assets/gifs/${cidLower}_${legacyEmotion}.gif`
+    ];
+
+    const firstSrc = candidateSources.shift();
 
     const card = document.createElement('div');
     card.className = 'character-card';
     card.innerHTML = `
       <div class="character-avatar-wrap">
-        <img src="${gifFile}" alt="${c.name}" class="character-gif" 
-             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';" />
+        <img src="${firstSrc}" alt="${c.name}" class="character-gif" 
+             data-candidates='${JSON.stringify(candidateSources)}'
+             onerror="window.tryNextGifSource(this);" />
         <span class="character-fallback-icon" style="display:none;">${isUp ? '🎉' : '😭'}</span>
       </div>
       <div class="character-name">${c.name}</div>

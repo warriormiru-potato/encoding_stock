@@ -94,16 +94,23 @@ async function startServer() {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // 방 생성 (호스트)
+    // 방 생성 (호스트/어드민)
     socket.on('createRoom', ({ playerName, adminPassword, playerId }) => {
       if (adminPassword !== ADMIN_PASSWORD) {
         socket.emit('errorMsg', GAME_CONFIG.TEXTS.WRONG_PASSWORD_ALERT);
         return;
       }
       const roomId = generateRoomCode();
+      const adminPlayer = {
+        id: playerId,
+        socketId: socket.id,
+        name: (playerName || '어드민') + ' (어드민)',
+        isAdmin: true
+      };
       rooms[roomId] = {
         id: roomId,
         host: playerId,
+        admin: adminPlayer,
         players: [],
         status: 'lobby', // lobby, playing, result, randombox, drillgame, end
         round: 1,
@@ -125,32 +132,13 @@ async function startServer() {
         activeLeverages: {} // { playerId: true }
       };
 
-      const player = {
-        id: playerId,
-        socketId: socket.id,
-        name: playerName,
-        cash: GAME_CONFIG.SYSTEM.DEFAULT_CASH,
-        shares: {},
-        totalAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH,
-        quizSolved: false,
-        yield: 0,
-        roundStartAsset: GAME_CONFIG.SYSTEM.DEFAULT_CASH,
-        roundBuyCount: {}, // { companyId: count } 각 라운드별 구매 수량 기록
-        items: [] // 보유한 아이템
-      };
-      COMPANIES.forEach(c => {
-        player.shares[c.id] = 0;
-        player.roundBuyCount[c.id] = 0;
-      });
-      rooms[roomId].players.push(player);
-
       socket.join(roomId);
-      socket.emit('roomCreated', { roomId, player });
+      socket.emit('roomCreated', { roomId, player: adminPlayer });
       io.to(roomId).emit('updateLobby', rooms[roomId].players);
       io.emit('roomListUpdate', getActiveRooms());
     });
 
-    // 방 참가 (게스트)
+    // 방 참가 (게스트 플레이어)
     socket.on('joinRoom', ({ roomId, playerName, playerId }) => {
       const room = rooms[roomId];
       if (!room) {
@@ -165,7 +153,7 @@ async function startServer() {
         socket.emit('errorMsg', '방이 가득 찼습니다.');
         return;
       }
-      if (room.players.some(p => p.name === playerName)) {
+      if ((room.admin && room.admin.name === playerName) || room.players.some(p => p.name === playerName)) {
         socket.emit('errorMsg', '이미 방에 같은 닉네임을 가진 플레이어가 있습니다. 다른 닉네임을 사용해주세요.');
         return;
       }
@@ -199,6 +187,18 @@ async function startServer() {
     socket.on('rejoinRoom', ({ roomId, playerId }) => {
       const room = rooms[roomId];
       if (room) {
+        if (room.admin && room.admin.id === playerId) {
+          room.admin.socketId = socket.id;
+          socket.join(roomId);
+          socket.emit('rejoinedRoom', { roomId, player: room.admin, room: getSafeRoomData(room), overallRankings });
+          if (room.status === 'lobby') {
+            io.to(roomId).emit('updateLobby', room.players);
+          } else {
+            io.to(roomId).emit('updatePlayers', room.players);
+          }
+          return;
+        }
+
         const player = room.players.find(p => p.id === playerId);
         if (player) {
           player.socketId = socket.id;
@@ -253,8 +253,8 @@ async function startServer() {
     // 강퇴
     socket.on('kickPlayer', ({ roomId, playerId }) => {
       const room = rooms[roomId];
-      const requester = room?.players.find(p => p.socketId === socket.id);
-      if (room && requester && room.host === requester.id) {
+      const isHost = room && (room.admin?.socketId === socket.id || room.host === socket.id);
+      if (room && isHost) {
         const pIdx = room.players.findIndex(p => p.id === playerId);
         if (pIdx !== -1) {
           const kickedSocketId = room.players[pIdx].socketId;
@@ -285,8 +285,12 @@ async function startServer() {
     // 게임 시작
     socket.on('startGame', ({ roomId, scenarioId }) => {
       const room = rooms[roomId];
-      const requester = room?.players.find(p => p.socketId === socket.id);
-      if (room && requester && room.host === requester.id) {
+      const isHost = room && (room.admin?.socketId === socket.id || room.host === socket.id || room.players.find(p => p.socketId === socket.id)?.id === room.host);
+      if (room && isHost) {
+        if (room.players.length === 0) {
+          socket.emit('errorMsg', '게임에 참여한 플레이어가 없습니다. 최소 1명 이상의 플레이어가 참가해야 게임을 시작할 수 있습니다.');
+          return;
+        }
         room.scenario = SCENARIOS.find(s => Number(s.id) === Number(scenarioId));
         room.maxRounds = Math.max(5, (room.scenario && room.scenario.rounds && room.scenario.rounds.length > 0) ? room.scenario.rounds.length : 5);
         room.status = 'playing';
@@ -425,8 +429,8 @@ async function startServer() {
     // 다음 라운드 진행
     socket.on('nextRound', ({ roomId }) => {
       const room = rooms[roomId];
-      const requester = room?.players.find(p => p.socketId === socket.id);
-      if (room && requester && room.host === requester.id) {
+      const isHost = room && (room.admin?.socketId === socket.id || room.host === socket.id || room.players.find(p => p.socketId === socket.id)?.id === room.host);
+      if (room && isHost) {
         proceedToNextRound(roomId);
       }
     });
@@ -434,7 +438,8 @@ async function startServer() {
     // 관리자/테스트용 강제 게임 종료
     socket.on('forceEndGame', ({ roomId }) => {
       const room = rooms[roomId];
-      if (!room) return;
+      const isHost = room && (room.admin?.socketId === socket.id || room.host === socket.id || room.players.find(p => p.socketId === socket.id)?.id === room.host);
+      if (!room || !isHost) return;
       
       if (room.timerInterval) {
         clearInterval(room.timerInterval);
@@ -937,25 +942,27 @@ async function startServer() {
     socket.on('disconnect', () => {
       for (const roomId in rooms) {
         const room = rooms[roomId];
+        if (room.admin && room.admin.socketId === socket.id) {
+          room.admin.socketId = null;
+        }
         const pIdx = room.players.findIndex(p => p.socketId === socket.id);
         if (pIdx !== -1) {
           if (room.status === 'lobby') {
             room.players.splice(pIdx, 1);
-            if (room.players.length === 0) {
-              if (room.timerInterval) clearInterval(room.timerInterval);
-              delete rooms[roomId];
-            } else {
-              const hasHost = room.players.some(p => p.id === room.host);
-              if (!hasHost && room.players.length > 0) {
-                room.host = room.players[0].id;
-              }
-              io.to(roomId).emit('updateLobby', room.players);
-            }
-            io.emit('roomListUpdate', getActiveRooms());
           } else {
             const disconnectedPlayer = room.players[pIdx];
             disconnectedPlayer.socketId = null;
           }
+        }
+
+        if (room.status === 'lobby') {
+          if (room.players.length === 0 && (!room.admin || room.admin.socketId === null)) {
+            if (room.timerInterval) clearInterval(room.timerInterval);
+            delete rooms[roomId];
+          } else {
+            io.to(roomId).emit('updateLobby', room.players);
+          }
+          io.emit('roomListUpdate', getActiveRooms());
         }
       }
     });
@@ -966,10 +973,10 @@ async function startServer() {
     for (const roomId in rooms) {
       if (rooms[roomId].status === 'lobby') {
         const room = rooms[roomId];
-        const hostPlayer = room.players.find(p => p.id === room.host);
+        const hostName = room.admin ? room.admin.name : '어드민';
         list.push({
           id: roomId,
-          hostName: hostPlayer ? hostPlayer.name : '알수없는',
+          hostName: hostName,
           playerCount: room.players.length,
           maxPlayers: GAME_CONFIG.SYSTEM.MAX_PLAYERS
         });

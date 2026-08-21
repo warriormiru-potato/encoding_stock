@@ -72,12 +72,16 @@
         <p>방장이 게임을 시작하기를 기다리고 있습니다...</p>
       </div>
 
-      <h3>참가자 목록 (<span id="player-count">1</span>/4)</h3>
+      <h3>참가자 목록 (<span id="player-count">0</span>/10명)</h3>
       <ul id="lobby-players" class="player-list"></ul>
     </section>
 
     <!-- 3. 인게임 화면 -->
     <section id="game-screen" style="display:none;">
+      <!-- 어드민 관전 모드 안내 배너 -->
+      <div id="admin-observer-banner" style="display:none; background: rgba(251, 191, 36, 0.15); border: 1.5px solid #fbbf24; color: #fbbf24; padding: 10px 20px; border-radius: 12px; font-weight: 800; text-align: center; margin-bottom: 15px; font-size: 1.05rem;">
+        🛡️ 어드민 (관전자) 모드입니다. 플레이어 게임을 진행하고 관전할 수 있습니다.
+      </div>
       <div class="game-header">
         <div>
           <h2 id="scenario-title">시나리오 제목</h2>

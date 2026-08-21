@@ -435,9 +435,10 @@ input:focus, select:focus {
   border-radius: 12px;
 }
 
-/* 마우스 호버 시 또는 터치 시 회전 효과 */
+/* 마우스 호버 시 또는 터치 시 반응 효과 */
 .hint-card:hover .hint-card-inner {
-  transform: rotateY(180deg);
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.45);
 }
 
 .hint-card-front, .hint-card-back {
