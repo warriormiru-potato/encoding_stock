@@ -610,20 +610,33 @@ socket.on('timerUpdate', (time) => {
   timerDisplay.textContent = `${m}:${s}`;
 });
 
+let currentActivePlayerId = null;
+
 // 2라운드 이상 턴 진행 타이머 수신
 socket.on('turnStarted', ({ activePlayerId, activePlayerName, turnTimer, turnOrder, activePlayerIndex }) => {
+  currentActivePlayerId = activePlayerId;
   // 현재 턴 플레이어 이름 표시 (서버에서 전달된 activePlayerName 또는 플레이어 목록에서 ID로 정확히 조회)
+  const isMyTurn = (activePlayerId === myPlayerId);
   const targetPlayer = (window.currentRoomPlayers || []).find(p => p.id === activePlayerId);
   const pName = activePlayerName || (targetPlayer ? targetPlayer.name : (lobbyPlayers.children[activePlayerIndex]?.textContent.split(' ')[0] || '-'));
-  activeTurnPlayerEl.textContent = pName + (activePlayerId === myPlayerId ? ' (나)' : '');
+  activeTurnPlayerEl.textContent = pName + (isMyTurn ? ' (나)' : '');
   turnTimerDisplayEl.textContent = turnTimer;
 
   // 15초 대기 룰에 따라 스킵버튼 제어
-  skipTurnBtn.disabled = true;
-  skipTurnBtn.textContent = '턴 넘기기 (15초 대기)';
+  const isAdminUser = (me && me.isAdmin);
+  if (isAdminUser) {
+    skipTurnBtn.disabled = false;
+    skipTurnBtn.textContent = '⚡ [어드민] 턴 강제 넘기기';
+  } else if (isMyTurn) {
+    skipTurnBtn.disabled = true;
+    skipTurnBtn.textContent = '턴 넘기기 (15초 대기)';
+  } else {
+    skipTurnBtn.disabled = true;
+    skipTurnBtn.textContent = '턴 대기 중';
+  }
 
   // 본인 턴인 경우 강조
-  if (activePlayerId === myPlayerId) {
+  if (isMyTurn) {
     turnHud.style.borderColor = '#fbbf24';
     turnHud.style.background = 'rgba(251, 191, 36, 0.1)';
   } else {
@@ -635,10 +648,14 @@ socket.on('turnStarted', ({ activePlayerId, activePlayerName, turnTimer, turnOrd
 socket.on('turnTimerUpdate', ({ time, elapsed }) => {
   turnTimerDisplayEl.textContent = time;
 
-  const activeId = activeTurnPlayerEl.textContent.includes('(나)');
+  const isMyTurn = (currentActivePlayerId === myPlayerId) || activeTurnPlayerEl.textContent.includes('(나)');
   const isTestUser = (me && me.name === 'TEST') || (isHost && me && me.name === 'TEST');
+  const isAdminUser = (me && me.isAdmin);
 
-  if (activeId || isTestUser) {
+  if (isAdminUser) {
+    skipTurnBtn.disabled = false;
+    skipTurnBtn.textContent = '⚡ [어드민] 턴 강제 넘기기';
+  } else if (isMyTurn || isTestUser) {
     if (!isTestUser && elapsed < 15) {
       skipTurnBtn.disabled = true;
       skipTurnBtn.textContent = `턴 넘기기 (${15 - elapsed}초 대기)`;

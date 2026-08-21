@@ -409,14 +409,23 @@ async function startServer() {
       const room = rooms[roomId];
       if (!room || room.status !== 'playing' || room.round < 2) return;
 
+      const isAdminOrHost = (room.admin && room.admin.socketId === socket.id) ||
+                            (room.host === socket.id) ||
+                            (room.players.some(p => p.socketId === socket.id && (p.id === room.host || p.isAdmin)));
+
       const player = room.players.find(p => p.socketId === socket.id);
+
+      // 어드민 / 호스트인 경우: 언제든지 즉시 턴 넘기기 가능
+      if (isAdminOrHost) {
+        nextTurn(roomId);
+        return;
+      }
+
       if (!player) return;
 
-      const isHost = (room.host === player.id);
-      const hostPlayer = room.players.find(p => p.id === room.host);
-      const isTestHost = (hostPlayer && hostPlayer.name === 'TEST') || (player.name === 'TEST');
+      const isTestHost = (player.name === 'TEST');
 
-      // 방장인 경우 또는 본인 턴인 경우 스킵 가능
+      // 본인 턴인 경우 스킵 가능
       if (!isTestHost && room.activePlayerId !== player.id) return;
 
       // 최소 15초 생존 룰 (단, TEST인 경우 즉시 스킵 가능)
@@ -468,36 +477,39 @@ async function startServer() {
       io.to(roomId).emit('gameOver', { players: room.players, overallRankings });
     });
 
-    // 스킵 투표 (1라운드 전용)
+    // 라운드 스킵 (일반 투표 및 어드민 강제 스킵)
     socket.on('voteSkip', ({ roomId }) => {
       const room = rooms[roomId];
-      if (!room || room.status !== 'playing' || room.round >= 2) return;
+      if (!room || room.status !== 'playing') return;
 
-      const player = room.players.find(p => p.socketId === socket.id);
-      if (!player) return;
+      const isAdminOrHost = (room.admin && room.admin.socketId === socket.id) ||
+                            (room.host === socket.id) ||
+                            (room.players.some(p => p.socketId === socket.id && (p.id === room.host || p.isAdmin)));
 
-      const isHost = (room.host === player.id);
-      const isTestHost = (isHost && player.name === 'TEST');
-      const elapsedTime = GAME_CONFIG.SYSTEM.ROUND_TIME - room.timer;
-
-      // TEST 방장이 아닌 일반 플레이어는 60초 제한
-      if (!isHost && elapsedTime < 60) {
-        socket.emit('errorMsg', '라운드 시작 후 60초가 지나야 스킵할 수 있습니다.');
-        return;
-      }
-
-      // 방장(또는 TEST 방장)은 즉시 스킵 가능
-      if (isHost) {
+      // 어드민 / 호스트인 경우: 언제든지 즉시 라운드 강제 스킵
+      if (isAdminOrHost) {
         if (room.timerInterval) {
           clearInterval(room.timerInterval);
           room.timerInterval = null;
         }
         endRound(roomId);
-        io.to(roomId).emit('roundSkipped', { nextRoundIn: isTestHost ? 2 : 8 });
+        io.to(roomId).emit('roundSkipped', { nextRoundIn: 2 });
         if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
         room.autoSkipTimeout = setTimeout(() => {
           proceedToNextRound(roomId);
-        }, isTestHost ? 2000 : 8000);
+        }, 2000);
+        return;
+      }
+
+      // 일반 플레이어는 1라운드에서만 투표 가능
+      if (room.round >= 2) return;
+
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player) return;
+
+      const elapsedTime = GAME_CONFIG.SYSTEM.ROUND_TIME - room.timer;
+      if (elapsedTime < 60) {
+        socket.emit('errorMsg', '라운드 시작 후 60초가 지나야 스킵할 수 있습니다.');
         return;
       }
 
