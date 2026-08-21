@@ -1528,17 +1528,8 @@ socket.on('roundEnded', (data) => {
     rankingList.appendChild(li);
   });
 
-  if (isHost) {
-    document.getElementById('host-next-round-controls').style.display = 'block';
-  } else {
-    document.getElementById('guest-next-round-waiting').style.display = 'block';
-  }
-});
-
-// 다음 라운드 버튼
-document.getElementById('next-round-btn').addEventListener('click', () => {
-  socket.emit('nextRound', { roomId: currentRoom });
   document.getElementById('host-next-round-controls').style.display = 'none';
+  document.getElementById('guest-next-round-waiting').style.display = 'none';
 });
 
 // 최종 게임 종료

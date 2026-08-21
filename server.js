@@ -847,6 +847,14 @@ async function startServer() {
         changes: changes,
         pastBreakingNews: room.pastBreakingNews
       });
+
+      // 라운드 종료 결과창 노출 후 무조건 10초 뒤 자동 다음 라운드 진행
+      const autoWaitSeconds = 10;
+      io.to(roomId).emit('roundSkipped', { nextRoundIn: autoWaitSeconds });
+      if (room.autoSkipTimeout) clearTimeout(room.autoSkipTimeout);
+      room.autoSkipTimeout = setTimeout(() => {
+        proceedToNextRound(roomId);
+      }, autoWaitSeconds * 1000);
     }
 
     function rollRandomBoxForEveryone(roomId) {
@@ -939,6 +947,16 @@ async function startServer() {
             });
           }
         });
+
+        // 어드민에게도 roundStarted 브로드캐스트하여 결과창에서 다음 라운드 인게임 화면으로 자동 전환되도록 처리
+        if (room.admin && room.admin.socketId) {
+          io.to(room.admin.socketId).emit('roundStarted', {
+            round: room.round,
+            companies: room.companies,
+            players: room.players,
+            scenario: room.scenario
+          });
+        }
         
         startRoundTimer(roomId);
       }
