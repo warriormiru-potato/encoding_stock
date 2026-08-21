@@ -293,17 +293,30 @@
     function calculateSimilarity() {
       if (drill.path.length === 0 || targetPattern.length === 0) return 0;
       
-      // 도안의 전체 포인트 중 플레이어가 25px 이내로 지나간(가공 완료한) 포인트 비율 계산
+      const hitRadius = 20; // 드릴 가공 유효 반경
       let coveredPoints = 0;
-      const hitRadius = 25; // 드릴 가공 유효 반경
 
+      // 1. 도안 커버리지율 계산
       targetPattern.forEach(tp => {
         const reached = drill.path.some(dp => Math.hypot(tp.x - dp.x, tp.y - dp.y) <= hitRadius);
         if (reached) coveredPoints++;
       });
+      const coverageRate = (coveredPoints / targetPattern.length) * 100;
 
-      const percentage = Math.min(100, Math.round((coveredPoints / targetPattern.length) * 100));
-      return percentage;
+      // 2. 도안을 벗어난 이탈(오차) 비율 감점 계산
+      // 도안 경로에서 멀리 벗어난 이동 점이 많을수록 유사도 차감
+      let offTrackPoints = 0;
+      const offTrackThreshold = 25; // 도안과의 최소 허용 오차 거리
+
+      drill.path.forEach(dp => {
+        const isNearTrack = targetPattern.some(tp => Math.hypot(tp.x - dp.x, tp.y - dp.y) <= offTrackThreshold);
+        if (!isNearTrack) offTrackPoints++;
+      });
+
+      const offTrackPenalty = Math.min(100, Math.round((offTrackPoints / drill.path.length) * 60)); // 최대 60%까지 감점
+      const finalPercentage = Math.max(0, Math.min(100, Math.round(coverageRate - offTrackPenalty)));
+
+      return finalPercentage;
     }
 
     function gameLoop() {

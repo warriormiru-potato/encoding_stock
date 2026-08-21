@@ -236,8 +236,10 @@ async function startServer() {
           totalCount: connectedPlayers.length
         });
         if (room.round >= 2 && room.activePlayerId) {
+          const activePlayer = room.players.find(p => p.id === room.activePlayerId);
           socket.emit('turnStarted', {
             activePlayerId: room.activePlayerId,
+            activePlayerName: activePlayer ? activePlayer.name : '-',
             turnTimer: room.turnTimer,
             turnOrder: room.turnOrder,
             activePlayerIndex: room.activePlayerIndex
@@ -654,12 +656,14 @@ async function startServer() {
       if (!room) return;
 
       const activeId = room.turnOrder[room.activePlayerIndex];
+      const activePlayer = room.players.find(p => p.id === activeId);
       room.activePlayerId = activeId;
       room.turnTimer = 45;
       room.turnElapsedTime = 0;
 
       io.to(roomId).emit('turnStarted', {
         activePlayerId: activeId,
+        activePlayerName: activePlayer ? activePlayer.name : '-',
         turnTimer: room.turnTimer,
         turnOrder: room.turnOrder,
         activePlayerIndex: room.activePlayerIndex

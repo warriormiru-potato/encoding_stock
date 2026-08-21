@@ -611,9 +611,10 @@ socket.on('timerUpdate', (time) => {
 });
 
 // 2라운드 이상 턴 진행 타이머 수신
-socket.on('turnStarted', ({ activePlayerId, turnTimer, turnOrder, activePlayerIndex }) => {
-  // 현재 턴 플레이어 이름 표시
-  const pName = lobbyPlayers.children[activePlayerIndex]?.textContent.split(' ')[0] || '-';
+socket.on('turnStarted', ({ activePlayerId, activePlayerName, turnTimer, turnOrder, activePlayerIndex }) => {
+  // 현재 턴 플레이어 이름 표시 (서버에서 전달된 activePlayerName 또는 플레이어 목록에서 ID로 정확히 조회)
+  const targetPlayer = (window.currentRoomPlayers || []).find(p => p.id === activePlayerId);
+  const pName = activePlayerName || (targetPlayer ? targetPlayer.name : (lobbyPlayers.children[activePlayerIndex]?.textContent.split(' ')[0] || '-'));
   activeTurnPlayerEl.textContent = pName + (activePlayerId === myPlayerId ? ' (나)' : '');
   turnTimerDisplayEl.textContent = turnTimer;
 
@@ -656,6 +657,7 @@ skipTurnBtn.addEventListener('click', () => {
 });
 
 socket.on('updatePlayers', (players) => {
+  window.currentRoomPlayers = players || [];
   renderPlayers(players);
   updateItemsDisplay(players);
   // 보유 수량 리프레시
@@ -1205,6 +1207,7 @@ function submitPostMinigameQuiz(quiz, selected) {
 
 // 3라운드 드릴 미니게임 이벤트 리스너
 socket.on('startDrillGame', () => {
+  if (me && me.isAdmin) return; // 어드민은 미니게임 대상에서 제외
   const drillModal = document.getElementById('drillgame-modal');
   const drillIframe = document.getElementById('drillgame-iframe');
   
