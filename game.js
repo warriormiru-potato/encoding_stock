@@ -1106,8 +1106,8 @@ function showMinigameCardSelection(allowedCount) {
           if (nextRemaining > 0) {
             renderChoices(nextRemaining);
           } else {
-            // 2라운드 미니게임 카드 선택 완료 후 퀴즈 1회 도전 제공
-            startPostMinigameQuiz();
+            // 2라운드 미니게임 카드 선택 완료 후 퀴즈 없이 즉시 힌트 확인창으로 이동
+            showFinalQuizHintsSummary();
           }
         });
         quizOptions.appendChild(card);
@@ -1125,15 +1125,14 @@ function showMinigameFailureSummary() {
   quizQuestion.style.display = 'none';
   quizResult.style.display = 'block';
 
-  quizExplain.innerHTML = '<div style="color:var(--warning); font-weight:bold; font-size:1.05rem; margin-bottom:15px;">하지만 상식 퀴즈를 맞추면 힌트를 1개 만회할 수 있습니다!</div>';
+  quizExplain.innerHTML = '<div style="color:var(--text-muted); font-size:1rem; margin-bottom:15px;">이번 라운드는 획득한 힌트 없이 거래가 시작됩니다.</div>';
   const hintBox = document.getElementById('quiz-hint-box');
   hintBox.style.display = 'none';
 
   closeQuizBtn.style.display = 'block';
-  closeQuizBtn.textContent = '퀴즈 풀고 힌트 도전하기';
+  closeQuizBtn.textContent = '확인 (거래 개시)';
   closeQuizBtn.onclick = () => {
-    closeQuizBtn.onclick = null;
-    startPostMinigameQuiz();
+    quizModal.style.display = 'none';
   };
   quizModal.style.display = 'flex';
 }
