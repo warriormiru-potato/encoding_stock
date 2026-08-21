@@ -333,6 +333,18 @@ let selectedCompanyIdsForQuiz = [];
 function showHintQuizSystem(data) {
   if (me && me.isAdmin) return; // 어드민은 퀴즈 및 힌트 팝업 대상에서 제외
 
+  // 이전 모달 잔여물 정리
+  const drillModal = document.getElementById('drillgame-modal');
+  if (drillModal) {
+    drillModal.style.display = 'none';
+    const drillIframe = document.getElementById('drillgame-iframe');
+    if (drillIframe) drillIframe.src = '';
+  }
+  const randomboxModal = document.getElementById('randombox-modal');
+  if (randomboxModal) {
+    randomboxModal.style.display = 'none';
+  }
+
   currentRoundScenario = data.scenario || (window.SCENARIOS && window.SCENARIOS[0]) || null;
   currentRoundNumber = data.round || 1;
   selectedHints = [];
@@ -1630,7 +1642,7 @@ socket.on('breakingNews', (data) => {
   banner.style.left = 'auto';
   banner.style.transform = 'none';
   banner.style.width = '100%';
-  banner.style.pointerEvents = 'auto';
+  banner.style.pointerEvents = 'none';
 
   banner.innerHTML = `
     <div class="news-content">

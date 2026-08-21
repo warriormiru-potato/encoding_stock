@@ -392,6 +392,9 @@ async function startServer() {
         if (player.shares[companyId] >= qty) {
           player.cash += totalCost;
           player.shares[companyId] -= qty;
+          // 매도 시 매도한 만큼 이번 라운드 구매 한도(roundBuyCount)를 복구
+          const currentBought = player.roundBuyCount[companyId] || 0;
+          player.roundBuyCount[companyId] = Math.max(0, currentBought - qty);
           // 매도 시 주가 0.5% 하락
           comp.basePrice = Math.max(1, Math.round(comp.basePrice * (1 - (0.005 * qty))));
         } else {
@@ -666,7 +669,7 @@ async function startServer() {
           }
         }, 1000);
       } else {
-        // 2라운드부터는 턴제 거래 진행 (각 플레이어별 45초 턴 타이머 즉시 시작)
+        // 2라운드부터는 턴제 거래 진행
         setupBreakingNews(room);
         // 순서: 직전 라운드 수익률(yield)이 낮은 순서대로
         room.turnOrder = [...room.players]
@@ -674,7 +677,19 @@ async function startServer() {
           .map(p => p.id);
 
         room.activePlayerIndex = 0;
-        startTurn(roomId);
+
+        // 2라운드는 불량 칩 미니게임이 진행되므로 미니게임 시간(35초) 후 첫 턴 거래 타이머 시작
+        if (room.round === 2) {
+          if (room.timerInterval) clearInterval(room.timerInterval);
+          if (room.minigameDelayTimeout) clearTimeout(room.minigameDelayTimeout);
+          room.minigameDelayTimeout = setTimeout(() => {
+            if (room.status === 'playing' && room.round === 2) {
+              startTurn(roomId);
+            }
+          }, 35000);
+        } else {
+          startTurn(roomId);
+        }
       }
     }
 
