@@ -1281,13 +1281,11 @@ socket.on('randomBoxRolled', ({ rolls, players }) => {
         openDistortedTruthSetup(players);
       };
     } else {
-      confirmBtn.textContent = '확인 (4라운드 진행)';
+      confirmBtn.textContent = '확인 (아이템 수령 완료)';
       confirmBtn.onclick = () => {
         randomboxModal.style.display = 'none';
         confirmBtn.remove();
-        if (isHost) {
-          socket.emit('nextRound', { roomId: currentRoom });
-        }
+        socket.emit('confirmItemReceived', { roomId: currentRoom });
       };
     }
     rolledItemResult.appendChild(confirmBtn);

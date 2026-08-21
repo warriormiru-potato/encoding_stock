@@ -604,6 +604,20 @@ async function startServer() {
       io.to(roomId).emit('updatePlayers', room.players);
     });
 
+    // 모든 플레이어 아이템 확인 수령 완료 추적
+    socket.on('confirmItemReceived', ({ roomId }) => {
+      const room = rooms[roomId];
+      if (!room || room.status !== 'randombox') return;
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (player) {
+        player.itemConfirmed = true;
+        const allConfirmed = room.players.every(p => p.socketId === null || p.itemConfirmed);
+        if (allConfirmed) {
+          proceedToNextRound(roomId);
+        }
+      }
+    });
+
     // 미니게임 완료 결과 전송 (드릴 미니게임 등)
     socket.on('drillGameFinished', ({ roomId, score }) => {
       const room = rooms[roomId];
@@ -659,7 +673,19 @@ async function startServer() {
           .map(p => p.id);
 
         room.activePlayerIndex = 0;
-        startTurn(roomId);
+
+        // 2라운드는 불량 칩 미니게임 및 힌트 퀴즈 단계가 있으므로 미니게임 시간(약 45초)을 충분히 보장한 후 첫 턴 시작
+        if (room.round === 2) {
+          if (room.timerInterval) clearInterval(room.timerInterval);
+          if (room.minigameDelayTimeout) clearTimeout(room.minigameDelayTimeout);
+          room.minigameDelayTimeout = setTimeout(() => {
+            if (room.status === 'playing' && room.round === 2) {
+              startTurn(roomId);
+            }
+          }, 45000);
+        } else {
+          startTurn(roomId);
+        }
       }
     }
 
@@ -863,6 +889,7 @@ async function startServer() {
       room.status = 'randombox';
       const rolls = {};
       room.players.forEach(p => {
+        delete p.itemConfirmed;
         const rolled = ITEMS[Math.floor(Math.random() * ITEMS.length)];
         p.items.push(rolled);
         rolls[p.id] = rolled;
